@@ -1,0 +1,55 @@
+plugins {
+    id 'fabric-loom' version '1.9-SNAPSHOT'
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    maven { url = "https://maven.terraformersmc.com/releases/" }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Mod Menu: opcional para los usuarios; en desarrollo se carga para probar el botón de ajustes
+    modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+    modLocalRuntime "com.terraformersmc:modmenu:${project.modmenu_version}"
+}
+
+// Variantes de español: Minecraft NO hace fallback de es_mx -> es_es (cae a inglés),
+// así que se generan al compilar a partir de es_es.json. Solo mantienes ese archivo.
+def spanishVariants = ['es_mx', 'es_ar', 'es_cl', 'es_ec', 'es_uy', 'es_ve']
+
+processResources {
+    inputs.property "version", project.version
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+    spanishVariants.each { code ->
+        from('src/main/resources/assets/hoennascension/lang/es_es.json') {
+            into 'assets/hoennascension/lang'
+            rename 'es_es.json', "${code}.json"
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+    it.options.encoding = 'UTF-8'
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
