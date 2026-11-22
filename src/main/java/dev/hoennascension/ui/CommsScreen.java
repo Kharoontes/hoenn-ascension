@@ -1,25 +1,5 @@
 package dev.hoennascension.ui;
 
-import dev.hoennascension.HoennAscensionClient;
-import dev.hoennascension.config.ChannelDef;
-import dev.hoennascension.config.HoennConfig;
-import dev.hoennascension.core.ChatEntry;
-import dev.hoennascension.core.Commands;
-import dev.hoennascension.core.DonationTracker;
-import dev.hoennascension.core.Whispers;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.Identifier;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.OrderedText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import org.lwjgl.glfw.GLFW;
-
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -27,6 +7,28 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
+
+import org.lwjgl.glfw.GLFW;
+
+import dev.hoennascension.HoennAscensionClient;
+import dev.hoennascension.config.ChannelDef;
+import dev.hoennascension.config.HoennConfig;
+import dev.hoennascension.core.ChatEntry;
+import dev.hoennascension.core.Commands;
+import dev.hoennascension.core.DonationTracker;
+import dev.hoennascension.core.Whispers;
+import dev.hoennascension.core.WhisperPane;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.OrderedText;
+import net.minecraft.text.Style;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 /**
  * Panel principal con sidebar de navegación (canales + funciones).

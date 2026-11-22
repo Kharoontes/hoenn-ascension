@@ -28,7 +28,7 @@ public final class HoennConfig {
     public boolean sidebarCollapsed = false;
 
     // Chat normal de Minecraft
-    /** Oculta del chat normal TODO lo que captura el mod (el chat vive solo en el panel y el HUD). */
+    /** Oculta del chat normal todo lo que captura el mod (el chat vive solo en el panel y el HUD). */
     public boolean hideAllFromVanilla = false;
     /** Tras ejecutar un comando desde el mod (donar, susurrar...), oculta la respuesta del servidor del chat normal. */
     public boolean hideCommandFeedback = false;
