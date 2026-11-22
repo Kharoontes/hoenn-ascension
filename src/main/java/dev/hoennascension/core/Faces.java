@@ -14,17 +14,23 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** Caras de jugadores: skin real si está conectado, la última conocida o una skin por defecto. */
+/**
+ * Caras de jugadores: skin real si está conectado, la última conocida o una
+ * skin por defecto.
+ */
 public final class Faces {
     private static final Map<String, Identifier> CACHE = new HashMap<>();
 
-    private Faces() {}
+    private Faces() {
+    }
 
     private static PlayerListEntry online(String name) {
         ClientPlayNetworkHandler nh = MinecraftClient.getInstance().getNetworkHandler();
-        if (nh == null || name == null) return null;
+        if (nh == null || name == null)
+            return null;
         for (PlayerListEntry e : nh.getPlayerList()) {
-            if (e.getProfile().getName().equalsIgnoreCase(name)) return e;
+            if (e.getProfile().getName().equalsIgnoreCase(name))
+                return e;
         }
         return null;
     }
@@ -48,7 +54,8 @@ public final class Faces {
             return t;
         }
         Identifier cached = CACHE.get(key);
-        if (cached != null) return cached;
+        if (cached != null)
+            return cached;
         return DefaultSkinHelper.getSkinTextures(Uuids.getOfflinePlayerUuid(name)).texture();
     }
 
@@ -56,22 +63,29 @@ public final class Faces {
         Art.drawFace(c, skinFor(name), x, y, size);
     }
 
-    /** Jugadores conectados cuyo nombre contiene la búsqueda (sin contar al propio jugador). */
+    /**
+     * Jugadores conectados cuyo nombre contiene la búsqueda (sin contar al propio
+     * jugador).
+     */
     public static List<String> onlineMatching(String query, int limit) {
         MinecraftClient mc = MinecraftClient.getInstance();
         ClientPlayNetworkHandler nh = mc.getNetworkHandler();
         List<String> out = new ArrayList<>();
-        if (nh == null) return out;
+        if (nh == null)
+            return out;
         String self = mc.player != null ? mc.player.getName().getString() : "";
         String q = query == null ? "" : query.toLowerCase(Locale.ROOT);
         List<String> starts = new ArrayList<>();
         List<String> contains = new ArrayList<>();
         for (PlayerListEntry e : nh.getPlayerList()) {
             String n = e.getProfile().getName();
-            if (n.equalsIgnoreCase(self)) continue;
+            if (n.equalsIgnoreCase(self))
+                continue;
             String l = n.toLowerCase(Locale.ROOT);
-            if (q.isEmpty() || l.startsWith(q)) starts.add(n);
-            else if (l.contains(q)) contains.add(n);
+            if (q.isEmpty() || l.startsWith(q))
+                starts.add(n);
+            else if (l.contains(q))
+                contains.add(n);
         }
         starts.sort(String.CASE_INSENSITIVE_ORDER);
         contains.sort(String.CASE_INSENSITIVE_ORDER);
