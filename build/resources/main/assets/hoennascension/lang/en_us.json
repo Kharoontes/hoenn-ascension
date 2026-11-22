@@ -85,5 +85,15 @@
   "hoennascension.whisper.start": "Start chat",
   "hoennascension.whisper.none": "Type a name to start a chat",
   "hoennascension.whisper.me": "You",
-  "hoennascension.input.placeholder.whisper.none": "Pick or create a chat (or use @name)"
+  "hoennascension.input.placeholder.whisper.none": "Pick or create a chat (or use @name)",
+  "hoennascension.sub.all": "All",
+  "hoennascension.sub.legendary": "Legendary",
+  "hoennascension.sub.mega": "Mega",
+  "hoennascension.pay": "Pay",
+  "hoennascension.pay.title": "PAY %s",
+  "hoennascension.pay.sent": "Payment sent",
+  "hoennascension.pay.done": "Payment completed",
+  "hoennascension.pay.failed": "Payment failed",
+  "hoennascension.hidden.on": "Hidden from the normal chat",
+  "hoennascension.hidden.off": "Shown in the normal chat"
 }

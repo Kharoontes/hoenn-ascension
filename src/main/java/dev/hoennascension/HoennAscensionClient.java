@@ -55,9 +55,9 @@ public final class HoennAscensionClient implements ClientModInitializer {
 
         // Captura de mensajes (mensajes de sistema/plugins y chat de jugadores)
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) ->
-                overlay || MessageRouter.accept(message));
+                overlay || MessageRouter.accept(message, false));
         ClientReceiveMessageEvents.ALLOW_CHAT.register((message, signed, sender, params, timestamp) ->
-                MessageRouter.accept(params.applyChatDecoration(message)));
+                MessageRouter.accept(params.applyChatDecoration(message), true));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (OPEN.wasPressed()) {

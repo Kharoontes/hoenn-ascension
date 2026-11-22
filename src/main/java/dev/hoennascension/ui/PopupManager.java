@@ -56,10 +56,15 @@ public final class PopupManager {
 
     /** Aviso simple con etiqueta: uno nuevo con la misma etiqueta sustituye al anterior. */
     public void notice(String tag, String title, String body, int rgb, int seconds) {
+        notice(tag, tag, title, body, rgb, seconds);
+    }
+
+    /** Aviso con etiqueta e icono propio (el nombre de un icono de Icons). */
+    public void notice(String tag, String icon, String title, String body, int rgb, int seconds) {
         popups.removeIf(p -> tag.equals(p.tag));
         Popup p = new Popup();
         p.tag = tag;
-        p.icon = tag; // por convención la etiqueta es el nombre del icono (p. ej. "donate")
+        p.icon = icon;
         p.title = title;
         p.body = body.length() > 140 ? body.substring(0, 137) + "..." : body;
         p.rgb = rgb;

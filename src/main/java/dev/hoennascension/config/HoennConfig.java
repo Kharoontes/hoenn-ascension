@@ -118,7 +118,12 @@ public final class HoennConfig {
     }
 
     private void sanitize() {
-        if (channels == null || channels.isEmpty()) channels = defaultChannels();
+        if (channels == null || channels.isEmpty()) {
+            channels = defaultChannels();
+            version = 2;
+        } else if (version < 2) {
+            migrateToV2();
+        }
         if (highlightWords == null) highlightWords = new ArrayList<>();
         if (theme == null) theme = "primal";
         if (hudAnchor == null) hudAnchor = "bottom_left";
@@ -186,6 +191,58 @@ public final class HoennConfig {
         return channels.get(0);
     }
 
+    /** Configs antiguas (v1): los canales clan / legendarios / mega / mercado se sustituyen por los nuevos. */
+    private void migrateToV2() {
+        channels.removeIf(c -> c.id.equals("clan") || c.id.equals("legendary") || c.id.equals("mega")
+                || c.id.equals("trade") || c.id.equals("spawns") || c.id.equals("market"));
+        channels.addAll(specialChannels());
+        version = 2;
+        save();
+    }
+
+    /**
+     * Canales con filtros avanzados. Los patrones son un punto de partida: cada servidor formatea distinto
+     * sus mensajes, ajústalos en config/hoennascension.json a los mensajes reales.
+     */
+    private static List<ChannelDef> specialChannels() {
+        List<ChannelDef> l = new ArrayList<>();
+
+        // Clan: solo lo que llega por el chat del clan (todos los rangos). Al escribir aquí se envía con /clan chat.
+        ChannelDef clan = new ChannelDef("clan", "Clan",
+                "\\[\\s*(?:clan|cl\\u00e1n)(?:\\s+chat)?\\s*\\]", "#47B5F8");
+        clan.sendPrefix = "/clan chat ";
+        l.add(clan);
+
+        // Legendarios y Megas en un solo chat, con botones para filtrar. Solo avisos del juego y solo si
+        // la aparición está cerca del jugador.
+        ChannelDef spawns = new ChannelDef("spawns", "Legendarios / Megas",
+                "(legendary|legendario|\\bmega\\b)", "#EC7D8B").popup("levelup");
+        spawns.icon = "legendary";
+        spawns.gameOnly = true;
+        spawns.requirePattern = "(spawn|apareci|appear|surgi|sali\\u00f3|wild|salvaje)";
+        spawns.nearbyOnly = true;
+        spawns.nearbyBlocks = 256;
+        spawns.nearbyShowUnknown = true;
+        spawns.hideRejected = true;
+        spawns.coordPatterns = new ArrayList<>(List.of(
+                "\\bx\\s*[:=]?\\s*(?<x>-?\\d+(?:\\.\\d+)?)[\\s,;|/]+y\\s*[:=]?\\s*(?<y>-?\\d+(?:\\.\\d+)?)[\\s,;|/]+z\\s*[:=]?\\s*(?<z>-?\\d+(?:\\.\\d+)?)",
+                "(?<x>-?\\d{1,6})\\s*,\\s*(?<y>-?\\d{1,4})\\s*,\\s*(?<z>-?\\d{1,6})"));
+        spawns.subFilters = new ArrayList<>(List.of("legendary", "mega"));
+        spawns.subPatterns = new ArrayList<>(List.of("legendar", "\\bmega\\b"));
+        l.add(spawns);
+
+        // Mercado: solo tus compras y ventas del GTS (las de otros jugadores no entran aquí).
+        ChannelDef market = new ChannelDef("market", "Mercado",
+                "\\b(gts|wonder ?trade|intercambio)\\b", "#FFC247");
+        market.icon = "trade";
+        market.gameOnly = true;
+        market.ownOnly = true;
+        market.selfPattern = "\\b(you|your|t\\u00fa|tu|tus|has|compraste|vendiste)\\b";
+        l.add(market);
+
+        return l;
+    }
+
     /**
      * Los patrones son punto de partida: cada servidor formatea el chat distinto.
      * Ajústalos en config/hoennascension.json y usa /hoennascension reload.
@@ -199,10 +256,7 @@ public final class HoennConfig {
         l.add(new ChannelDef("private", "Privado",
                 "(\\[pm\\]|whispers to you|te susurra|->\\s*(me|you|yo)\\b)",
                 "#A481DE").popup("orb"));
-        l.add(new ChannelDef("clan", "Clan", "\\[(clan|clán)\\]", "#47B5F8"));
-        l.add(new ChannelDef("legendary", "Legendarios", "(legendary|legendario)", "#EC7D8B").popup("levelup"));
-        l.add(new ChannelDef("mega", "Mega", "\\bmega\\b", "#FF5A3C").popup("levelup"));
-        l.add(new ChannelDef("trade", "Mercado", "\\b(gts|wonder ?trade|intercambio)\\b", "#FFC247"));
+        l.addAll(specialChannels());
         return l;
     }
 }

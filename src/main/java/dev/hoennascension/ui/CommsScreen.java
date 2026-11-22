@@ -11,6 +11,7 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.resource.language.I18n;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
@@ -76,6 +77,9 @@ public final class CommsScreen extends Screen {
     private final List<String> tabIds = new ArrayList<>();
     private final List<SbItem> sbItems = new ArrayList<>();
     private final WhisperPane wp = new WhisperPane();
+    private final List<int[]> subRects = new ArrayList<>(); // {x, y, w, h, índice} de los botones de subfiltro
+    private String subFilter;                                // subfiltro activo (null = todos)
+    private boolean payMode;                                 // el popup de importe es para pagar a wp.peer
 
     private Page page = Page.CHAT;
     private String activeTab = "all";
@@ -160,11 +164,36 @@ public final class CommsScreen extends Screen {
 
     private String viewTab() { return page == Page.WHISPER ? "private" : activeTab; }
 
-    private int listTop() { return py + HEADER_H + 6 + (page == Page.WHISPER ? 22 : 0); }
+    private int listTop() { return py + HEADER_H + 6 + (page == Page.WHISPER ? 22 : (subRow() ? 20 : 0)); }
     /** En Susurros los mensajes empiezan a la derecha de la lista de conversaciones. */
     private int msgLeft() { return page == Page.WHISPER ? wp.contentLeft() : cx; }
     private int msgW() { return px + pw - msgLeft(); }
     private int barLeft() { return page == Page.WHISPER ? wp.contentLeft() : cx + 6; }
+
+    // ---- Subfiltros de canal (botones) y botón de pago ----------------------------------
+
+    private ChannelDef activeChannelDef() {
+        return page == Page.CHAT ? HoennConfig.get().channel(activeTab) : null;
+    }
+
+    /** ¿El canal abierto tiene botones de subfiltro? (p. ej. Legendarios / Megas) */
+    private boolean subRow() {
+        ChannelDef ch = activeChannelDef();
+        return ch != null && ch.hasSubFilters();
+    }
+
+    private String subLabel(String sub) {
+        if (sub == null) return Text.translatable("hoennascension.sub.all").getString();
+        String key = "hoennascension.sub." + sub;
+        return I18n.hasTranslation(key) ? I18n.translate(key) : sub;
+    }
+
+    private boolean payVisible() {
+        return page == Page.WHISPER && wp.peer != null && !HoennConfig.get().server.payCommand.isBlank();
+    }
+
+    private int payBtnX() { return px + pw - 8 - 56; }
+    private int payBtnY() { return py + HEADER_H + 5; }
     private int listBottom() { return py + ph - 26; }
     private int visibleLines() { return Math.max(1, (listBottom() - listTop()) / LINE_H); }
     private int btnY() { return py + (HEADER_H - 14) / 2; }
@@ -279,9 +308,14 @@ public final class CommsScreen extends Screen {
     private int dlgFieldY() { return dlgY() + 78; }
     private int dlgConfirmX() { return dlgX() + dlgW() - 10 - 66; }
 
+    /** Cantidades rápidas del popup: las de pago o las de donación según el modo. */
+    private List<Integer> amounts() {
+        return payMode ? HoennConfig.get().server.payAmounts : HoennConfig.get().server.donateAmounts;
+    }
+
     private int dlgQuickCount() {
         int fit = Math.max(1, (dlgW() - 20 + 4) / (34 + 4));
-        return Math.min(Math.min(6, fit), HoennConfig.get().server.donateAmounts.size());
+        return Math.min(Math.min(6, fit), amounts().size());
     }
 
     private int dlgQuickW() {
@@ -494,7 +528,8 @@ public final class CommsScreen extends Screen {
 
     private void rebuildIfNeeded(Theme th) {
         String tab = viewTab();
-        String key = tab + "/" + (page == Page.WHISPER && wp.peer != null ? wp.peer.toLowerCase() : "");
+        String key = tab + "/" + (page == Page.WHISPER && wp.peer != null ? wp.peer.toLowerCase() : "")
+                + "/" + (subFilter == null ? "" : subFilter);
         int version = HoennAscensionClient.STORE.version;
         if (version == cacheVersion && msgW() == cacheWidth && key.equals(cacheTab)) return;
 
@@ -508,6 +543,11 @@ public final class CommsScreen extends Screen {
         List<ChatEntry> source = (page == Page.WHISPER && wp.peer != null)
                 ? HoennAscensionClient.STORE.viewPeer(wp.peer, 400)
                 : HoennAscensionClient.STORE.view(tab, "", 400);
+        if (page == Page.CHAT && subFilter != null) {
+            List<ChatEntry> filtered = new ArrayList<>();
+            for (ChatEntry se : source) if (subFilter.equals(se.sub)) filtered.add(se);
+            source = filtered;
+        }
         for (ChatEntry e : source) {
             ChannelDef ch = cfg.channel(e.channel);
             int rgb = ch != null ? ch.rgb() : 0xFFFFFF;
@@ -520,6 +560,9 @@ public final class CommsScreen extends Screen {
                 t.append(Text.literal("[" + ch.name + "] ").setStyle(Style.EMPTY.withColor(rgb)));
             }
             t.append(Text.literal(e.text));
+            if (e.dist >= 0) {
+                t.append(Text.literal(" [" + e.dist + " m]").setStyle(Style.EMPTY.withColor(th.muted & 0xFFFFFF)));
+            }
             for (OrderedText ot : textRenderer.wrapLines(t, wrapW)) lines.add(new Line(ot, rgb, e.mention));
         }
     }
@@ -527,6 +570,7 @@ public final class CommsScreen extends Screen {
     private void selectChannel(String id) {
         page = Page.CHAT;
         activeTab = id;
+        subFilter = null;
         scroll = 0;
         cacheVersion = -1;
         updatePlaceholder();
@@ -584,6 +628,7 @@ public final class CommsScreen extends Screen {
     // ---- Donación (popup de cantidad) ---------------------------------------------------
 
     private void openDonate() {
+        payMode = false;
         donateOpen = true;
         emojiOpen = false;
         layoutWidgets();
@@ -591,6 +636,7 @@ public final class CommsScreen extends Screen {
 
     private void closeDonate() {
         donateOpen = false;
+        payMode = false;
         amountField.setText("");
         setFocused(null);
         layoutWidgets();
@@ -598,8 +644,31 @@ public final class CommsScreen extends Screen {
 
     /** Ejecuta el comando de donación del servidor (por defecto: /clan deposit {cantidad}). */
     private void donate(long value) {
+        if (payMode) {
+            pay(value);
+            return;
+        }
         Commands.run(Commands.fill(HoennConfig.get().server.donateCommand, "{amount}", String.valueOf(value)));
         DonationTracker.start(value);
+        closeDonate();
+    }
+
+    private void openPay() {
+        if (wp.peer == null) return;
+        payMode = true;
+        donateOpen = true;
+        emojiOpen = false;
+        layoutWidgets();
+    }
+
+    /** Paga al jugador de la conversación abierta con el comando del servidor (/pay jugador pokedolares cantidad). */
+    private void pay(long value) {
+        String peer = wp.peer;
+        String tpl = HoennConfig.get().server.payCommand;
+        if (peer != null && !tpl.isBlank()) {
+            Commands.run(Commands.fill(tpl, "{player}", peer, "{amount}", String.valueOf(value)));
+            DonationTracker.startPay(peer, value);
+        }
         closeDonate();
     }
 
@@ -722,18 +791,9 @@ public final class CommsScreen extends Screen {
                     float ia = active ? 1f : 0.8f;
                     if (it.kind() == KIND_CHANNEL) {
                         ChannelDef chd = cfg.channel(it.id());
-                        boolean hid = cfg.hideAllFromVanilla || (chd != null && chd.hideFromVanilla);
                         String icon = it.id().equals("all") ? "all" : (chd != null ? chd.iconName() : it.id());
-                        if (!Icons.draw(c, icon, sx + 6, it.y() + 2, 12, hid ? ia * 0.5f : ia)) {
-                            int dcol = Gfx.rgb(rgb, ia);
-                            if (hid) Gfx.diamondOutline(c, sx + 12, it.y() + 8, 3, dcol);
-                            else Gfx.diamond(c, sx + 12, it.y() + 8, 3, dcol);
-                        }
-                        // Tachado = este canal NO se muestra en el chat normal de Minecraft
-                        if (hid) {
-                            for (int k = 0; k < 10; k++) {
-                                c.fill(sx + 7 + k, it.y() + 12 - k, sx + 8 + k, it.y() + 13 - k, Gfx.alpha(th.text, 0.85f));
-                            }
+                        if (!Icons.draw(c, icon, sx + 6, it.y() + 2, 12, ia)) {
+                            Gfx.diamond(c, sx + 12, it.y() + 8, 3, Gfx.rgb(rgb, ia));
                         }
                     } else if (!Icons.draw(c, it.id(), sx + 6, it.y() + 2, 12, ia)) {
                         drawFuncIcon(c, it.id(), sx + 6, it.y() + 2, rgb, ia);
@@ -908,6 +968,7 @@ public final class CommsScreen extends Screen {
         // Sidebar y contenido
         renderSidebar(c, th, mx, my, clip);
         if (page == Page.WHISPER) renderWhisperTop(c, th, mx, my);
+        else if (subRow()) renderSubFilters(c, th, mx, my);
         renderMessages(c, th, clip);
 
         // Barra de entrada con botón de emojis y de enviar
@@ -999,7 +1060,45 @@ public final class CommsScreen extends Screen {
         String[] tip = {null};
         wp.render(c, th, textRenderer, mx, my, donateOpen || wp.dialogOpen, tip);
         if (tip[0] != null) hoverTip = tip[0];
-        wp.renderHeader(c, th, textRenderer, msgLeft() + 4, py + HEADER_H + 6, px + pw - 8 - (msgLeft() + 4));
+        int hx = msgLeft() + 4;
+        int hw = px + pw - 8 - hx - (payVisible() ? 62 : 0);
+        wp.renderHeader(c, th, textRenderer, hx, py + HEADER_H + 6, hw);
+        if (payVisible()) renderPayButton(c, mx, my);
+    }
+
+    private void renderPayButton(DrawContext c, int mx, int my) {
+        boolean hover = !donateOpen && !wp.dialogOpen && Gfx.inside(mx, my, payBtnX(), payBtnY(), 56, 16);
+        c.fillGradient(payBtnX(), payBtnY(), payBtnX() + 56, payBtnY() + 16,
+                hover ? 0xFF35C46A : 0xFF22984F, hover ? 0xFF1E8F4A : 0xFF146B36);
+        String label = Text.translatable("hoennascension.pay").getString();
+        c.drawText(textRenderer, label, payBtnX() + 28 - textRenderer.getWidth(label) / 2, payBtnY() + 4,
+                0xFFFFFFFF, true);
+    }
+
+    /** Botones de subfiltro del canal abierto (p. ej. Todos / Legendarios / Megas). */
+    private void renderSubFilters(DrawContext c, Theme th, int mx, int my) {
+        ChannelDef ch = activeChannelDef();
+        if (ch == null) return;
+        TextRenderer tr = textRenderer;
+        subRects.clear();
+        List<String> options = new ArrayList<>();
+        options.add(null);
+        options.addAll(ch.subFilters);
+        int x = msgLeft() + 4;
+        int y = py + HEADER_H + 6;
+        for (int i = 0; i < options.size(); i++) {
+            String sub = options.get(i);
+            String label = subLabel(sub);
+            int w = tr.getWidth(label) + 14;
+            if (x + w > px + pw - 8) break;
+            subRects.add(new int[]{x, y, w, 14, i});
+            boolean active = sub == null ? subFilter == null : sub.equals(subFilter);
+            boolean hover = !donateOpen && !wp.dialogOpen && Gfx.inside(mx, my, x, y, w, 14);
+            c.fill(x, y, x + w, y + 14, Gfx.rgb(ch.rgb(), active ? 0.55f : (hover ? 0.32f : 0.18f)));
+            if (active) c.fill(x, y + 13, x + w, y + 14, Gfx.rgb(ch.rgb(), 1f));
+            c.drawText(tr, label, x + 7, y + 3, active ? th.text : th.muted, !th.light);
+            x += w + 4;
+        }
     }
 
     private void renderEmojiPicker(DrawContext c, Theme th, int mx, int my) {
@@ -1025,7 +1124,14 @@ public final class CommsScreen extends Screen {
         int dx = dlgX(), dy = dlgY(), dw = dlgW(), dh = dlgH();
         Gfx.panel(c, dx, dy, dw, dh, th, 0.95f);
 
-        c.drawText(tr, Text.translatable("hoennascension.donate.title"), dx + 10, dy + 10,
+        int titleX = dx + 10;
+        if (payMode && wp.peer != null) {
+            Faces.draw(c, wp.peer, dx + 10, dy + 7, 14);
+            titleX = dx + 28;
+        }
+        Text dlgTitle = payMode ? Text.translatable("hoennascension.pay.title", wp.peer == null ? "" : wp.peer)
+                : Text.translatable("hoennascension.donate.title");
+        c.drawText(tr, tr.trimToWidth(dlgTitle.getString(), Math.max(20, dw - 36 - (titleX - dx))), titleX, dy + 10,
                 th.light ? 0xFF1B8A4A : 0xFF7DFFB0, !th.light);
         boolean hoverX = Gfx.inside(mx, my, dx + dw - 18, dy + 6, 12, 12);
         c.drawText(tr, "x", dx + dw - 15, dy + 9, hoverX ? 0xFFFF6A6A : th.muted, false);
@@ -1038,7 +1144,7 @@ public final class CommsScreen extends Screen {
             boolean hover = Gfx.inside(mx, my, bx, dy + 38, bw, 20);
             c.fillGradient(bx, dy + 38, bx + bw, dy + 58,
                     hover ? 0xFF35C46A : 0xFF22984F, hover ? 0xFF1E8F4A : 0xFF146B36);
-            String label = tr.trimToWidth(shortLabel(cfg.server.donateAmounts.get(i)), Math.max(8, bw - 4));
+            String label = tr.trimToWidth(shortLabel(amounts().get(i)), Math.max(8, bw - 4));
             c.drawText(tr, label, bx + bw / 2 - tr.getWidth(label) / 2, dy + 44, 0xFFFFFFFF, true);
         }
 
@@ -1050,10 +1156,12 @@ public final class CommsScreen extends Screen {
         boolean hoverConfirm = Gfx.inside(mx, my, dlgConfirmX(), fy, 66, 16);
         c.fillGradient(dlgConfirmX(), fy, dlgConfirmX() + 66, fy + 16,
                 hoverConfirm ? 0xFF35C46A : 0xFF22984F, hoverConfirm ? 0xFF1E8F4A : 0xFF146B36);
-        String conf = Text.translatable("hoennascension.donate.confirm").getString();
+        String conf = Text.translatable(payMode ? "hoennascension.pay" : "hoennascension.donate.confirm").getString();
         c.drawText(tr, conf, dlgConfirmX() + 33 - tr.getWidth(conf) / 2, fy + 4, 0xFFFFFFFF, true);
 
-        String preview = tr.trimToWidth(cfg.server.donateCommand.replace("{amount}", "<n>"), Math.max(20, dw - 20));
+        String command = payMode ? cfg.server.payCommand.replace("{player}", wp.peer == null ? "?" : wp.peer)
+                : cfg.server.donateCommand;
+        String preview = tr.trimToWidth(command.replace("{amount}", "<n>"), Math.max(20, dw - 20));
         c.drawText(tr, preview, dx + 10, dy + 102, Gfx.alpha(th.muted, 0.8f), false);
     }
 
@@ -1076,6 +1184,10 @@ public final class CommsScreen extends Screen {
                         if (ch != null) {
                             ch.hideFromVanilla = !ch.hideFromVanilla;
                             HoennConfig.get().save();
+                            HoennAscensionClient.POPUPS.notice("hide", ch.iconName(), ch.name,
+                                    Text.translatable(ch.hideFromVanilla
+                                            ? "hoennascension.hidden.on" : "hoennascension.hidden.off").getString(),
+                                    ch.rgb(), 2);
                         }
                         return true;
                     }
@@ -1105,7 +1217,7 @@ public final class CommsScreen extends Screen {
                 }
                 for (int i = 0; i < dlgQuickCount(); i++) {
                     if (Gfx.inside(mx, my, dlgQuickX(i), dy + 38, dlgQuickW(), 20)) {
-                        donate(cfg.server.donateAmounts.get(i));
+                        donate(amounts().get(i));
                         return true;
                     }
                 }
@@ -1194,6 +1306,25 @@ public final class CommsScreen extends Screen {
                     }
                 }
                 return true;
+            }
+
+            // Botón Pagar de la conversación abierta
+            if (payVisible() && Gfx.inside(mx, my, payBtnX(), payBtnY(), 56, 16)) {
+                openPay();
+                return true;
+            }
+
+            // Botones de subfiltro del canal (p. ej. Legendarios / Megas)
+            if (subRow()) {
+                ChannelDef sch = activeChannelDef();
+                for (int[] r : subRects) {
+                    if (sch != null && Gfx.inside(mx, my, r[0], r[1], r[2], r[3])) {
+                        subFilter = r[4] == 0 ? null : sch.subFilters.get(r[4] - 1);
+                        cacheVersion = -1;
+                        scroll = 0;
+                        return true;
+                    }
+                }
             }
 
             // Página Susurros: lista de conversaciones
