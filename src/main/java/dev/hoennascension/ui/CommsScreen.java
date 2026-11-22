@@ -1,15 +1,5 @@
 package dev.hoennascension.ui;
 
-import java.time.Instant;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Pattern;
-
-import org.lwjgl.glfw.GLFW;
-
 import dev.hoennascension.HoennAscensionClient;
 import dev.hoennascension.config.ChannelDef;
 import dev.hoennascension.config.HoennConfig;
@@ -23,20 +13,26 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Identifier;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import org.lwjgl.glfw.GLFW;
+
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Panel principal con sidebar de navegación (canales + funciones).
- * Movible, redimensionable (con límites) y proporcional al tamaño de la
- * ventana; animaciones de
- * apertura, cierre, minimizado y plegado del sidebar. La X minimiza; Esc cierra
- * del todo.
- * Nada recibe el foco de escritura por sí solo: la misma tecla abre y cierra
- * sin tocar el texto.
+ * Movible, redimensionable (con límites) y proporcional al tamaño de la ventana; animaciones de
+ * apertura, cierre, minimizado y plegado del sidebar. La X minimiza; Esc cierra del todo.
+ * Nada recibe el foco de escritura por sí solo: la misma tecla abre y cierra sin tocar el texto.
  */
 public final class CommsScreen extends Screen {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
@@ -50,8 +46,7 @@ public final class CommsScreen extends Screen {
     private static final int SB_COLLAPSED = 28;
     private static final int AUTO_COLLAPSE_BELOW = 340;
 
-    // Símbolos que existen en la fuente de Minecraft (se ven igual para todos los
-    // jugadores)
+    // Símbolos que existen en la fuente de Minecraft (se ven igual para todos los jugadores)
     private static final String[] EMOJIS = {
             "\u263A", "\u263B", "\u2665", "\u2661", "\u2605", "\u2606", "\u266A", "\u266B",
             "\u2600", "\u2601", "\u2602", "\u2744", "\u273F", "\u2714", "\u2718", "\u2726",
@@ -62,17 +57,12 @@ public final class CommsScreen extends Screen {
     private static final int EMO_CELL = 16;
     private static final int EMO_PAD = 4;
 
-    private enum Page {
-        CHAT, WHISPER
-    }
+    private enum Page { CHAT, WHISPER }
 
     private static final int KIND_SECTION = 0, KIND_CHANNEL = 1, KIND_FUNC = 2, KIND_SEP = 3;
 
-    private record Line(OrderedText text, int rgb, boolean mention) {
-    }
-
-    private record SbItem(int kind, String id, String label, int rgb, int y, int h) {
-    }
+    private record Line(OrderedText text, int rgb, boolean mention) {}
+    private record SbItem(int kind, String id, String label, int rgb, int y, int h) {}
 
     private final List<Line> lines = new ArrayList<>();
     private final List<String> tabIds = new ArrayList<>();
@@ -148,81 +138,32 @@ public final class CommsScreen extends Screen {
         this.fromPill = fromPill;
     }
 
-    // ---- Utilidades de layout
-    // -----------------------------------------------------------
+    // ---- Utilidades de layout -----------------------------------------------------------
 
     private static int clamp(int v, int lo, int hi) {
         return Math.max(lo, Math.min(hi, v));
     }
 
-    // Límites de tamaño: los de la config, siempre acotados por el tamaño real de
-    // la pantalla
-    private int minW() {
-        return Math.min(HoennConfig.get().windowMinWidth, Math.max(120, width - 2 * MARGIN));
-    }
+    // Límites de tamaño: los de la config, siempre acotados por el tamaño real de la pantalla
+    private int minW() { return Math.min(HoennConfig.get().windowMinWidth, Math.max(120, width - 2 * MARGIN)); }
+    private int minH() { return Math.min(HoennConfig.get().windowMinHeight, Math.max(80, height - 2 * MARGIN)); }
+    private int maxW() { return Math.max(minW(), Math.min(HoennConfig.get().windowMaxWidth, width - 2 * MARGIN)); }
+    private int maxH() { return Math.max(minH(), Math.min(HoennConfig.get().windowMaxHeight, height - 2 * MARGIN)); }
 
-    private int minH() {
-        return Math.min(HoennConfig.get().windowMinHeight, Math.max(80, height - 2 * MARGIN));
-    }
+    private String viewTab() { return page == Page.WHISPER ? "private" : activeTab; }
 
-    private int maxW() {
-        return Math.max(minW(), Math.min(HoennConfig.get().windowMaxWidth, width - 2 * MARGIN));
-    }
-
-    private int maxH() {
-        return Math.max(minH(), Math.min(HoennConfig.get().windowMaxHeight, height - 2 * MARGIN));
-    }
-
-    private String viewTab() {
-        return page == Page.WHISPER ? "private" : activeTab;
-    }
-
-    private int listTop() {
-        return py + HEADER_H + 6 + (page == Page.WHISPER ? 22 : 0);
-    }
-
-    /**
-     * En Susurros los mensajes empiezan a la derecha de la lista de conversaciones.
-     */
-    private int msgLeft() {
-        return page == Page.WHISPER ? wp.contentLeft() : cx;
-    }
-
-    private int msgW() {
-        return px + pw - msgLeft();
-    }
-
-    private int barLeft() {
-        return page == Page.WHISPER ? wp.contentLeft() : cx + 6;
-    }
-
-    private int listBottom() {
-        return py + ph - 26;
-    }
-
-    private int visibleLines() {
-        return Math.max(1, (listBottom() - listTop()) / LINE_H);
-    }
-
-    private int btnY() {
-        return py + (HEADER_H - 14) / 2;
-    }
-
-    private int sendX() {
-        return px + pw - 26;
-    }
-
-    private int emojiX() {
-        return sendX() - 18;
-    }
-
-    private int inputBarY() {
-        return py + ph - 22;
-    }
-
-    private int sbBottom() {
-        return py + ph - 24;
-    }
+    private int listTop() { return py + HEADER_H + 6 + (page == Page.WHISPER ? 22 : 0); }
+    /** En Susurros los mensajes empiezan a la derecha de la lista de conversaciones. */
+    private int msgLeft() { return page == Page.WHISPER ? wp.contentLeft() : cx; }
+    private int msgW() { return px + pw - msgLeft(); }
+    private int barLeft() { return page == Page.WHISPER ? wp.contentLeft() : cx + 6; }
+    private int listBottom() { return py + ph - 26; }
+    private int visibleLines() { return Math.max(1, (listBottom() - listTop()) / LINE_H); }
+    private int btnY() { return py + (HEADER_H - 14) / 2; }
+    private int sendX() { return px + pw - 26; }
+    private int emojiX() { return sendX() - 18; }
+    private int inputBarY() { return py + ph - 22; }
+    private int sbBottom() { return py + ph - 24; }
 
     private void storeLayout(HoennConfig cfg) {
         cfg.winXr = px / (float) width;
@@ -231,10 +172,7 @@ public final class CommsScreen extends Screen {
         cfg.winHr = ph / (float) height;
     }
 
-    /**
-     * Posición y tamaño proporcionales a la pantalla: siguen el tamaño de la
-     * ventana del juego.
-     */
+    /** Posición y tamaño proporcionales a la pantalla: siguen el tamaño de la ventana del juego. */
     private void applyInitialLayout(HoennConfig cfg) {
         if (cfg.winWr > 0f && cfg.winHr > 0f && cfg.winXr >= 0f && cfg.winYr >= 0f) {
             pw = clamp(Math.round(cfg.winWr * width), minW(), maxW());
@@ -326,29 +264,12 @@ public final class CommsScreen extends Screen {
     }
 
     // Geometría del popup de donación (centrado en el panel)
-    private int dlgW() {
-        return Math.max(180, Math.min(270, pw - 24));
-    }
-
-    private int dlgH() {
-        return 118;
-    }
-
-    private int dlgX() {
-        return px + (pw - dlgW()) / 2;
-    }
-
-    private int dlgY() {
-        return py + Math.max(HEADER_H + 4, (ph - dlgH()) / 2);
-    }
-
-    private int dlgFieldY() {
-        return dlgY() + 78;
-    }
-
-    private int dlgConfirmX() {
-        return dlgX() + dlgW() - 10 - 66;
-    }
+    private int dlgW() { return Math.max(180, Math.min(270, pw - 24)); }
+    private int dlgH() { return 118; }
+    private int dlgX() { return px + (pw - dlgW()) / 2; }
+    private int dlgY() { return py + Math.max(HEADER_H + 4, (ph - dlgH()) / 2); }
+    private int dlgFieldY() { return dlgY() + 78; }
+    private int dlgConfirmX() { return dlgX() + dlgW() - 10 - 66; }
 
     private int dlgQuickCount() {
         int fit = Math.max(1, (dlgW() - 20 + 4) / (34 + 4));
@@ -365,29 +286,16 @@ public final class CommsScreen extends Screen {
     }
 
     // Geometría del selector de emojis (anclado sobre el botón)
-    private int emoW() {
-        return EMO_COLS * EMO_CELL + EMO_PAD * 2;
-    }
-
-    private int emoH() {
-        return ((EMOJIS.length + EMO_COLS - 1) / EMO_COLS) * EMO_CELL + EMO_PAD * 2;
-    }
-
-    private int emoX() {
-        return clamp(emojiX() + 18 - emoW(), px + 2, Math.max(px + 2, px + pw - emoW() - 2));
-    }
-
-    private int emoY() {
-        return Math.max(py + HEADER_H + 2, inputBarY() - emoH() - 4);
-    }
+    private int emoW() { return EMO_COLS * EMO_CELL + EMO_PAD * 2; }
+    private int emoH() { return ((EMOJIS.length + EMO_COLS - 1) / EMO_COLS) * EMO_CELL + EMO_PAD * 2; }
+    private int emoX() { return clamp(emojiX() + 18 - emoW(), px + 2, Math.max(px + 2, px + pw - emoW() - 2)); }
+    private int emoY() { return Math.max(py + HEADER_H + 2, inputBarY() - emoH() - 4); }
 
     private int emojiIndexAt(double mx, double my) {
-        if (!Gfx.inside(mx, my, emoX(), emoY(), emoW(), emoH()))
-            return -1;
+        if (!Gfx.inside(mx, my, emoX(), emoY(), emoW(), emoH())) return -1;
         int col = ((int) mx - emoX() - EMO_PAD) / EMO_CELL;
         int row = ((int) my - emoY() - EMO_PAD) / EMO_CELL;
-        if (col < 0 || col >= EMO_COLS || row < 0)
-            return -1;
+        if (col < 0 || col >= EMO_COLS || row < 0) return -1;
         int idx = row * EMO_COLS + col;
         return idx < EMOJIS.length ? idx : -1;
     }
@@ -405,8 +313,7 @@ public final class CommsScreen extends Screen {
         input.setX(barLeft() + 4);
         input.setY(py + ph - 18);
         input.setWidth(Math.max(20, emojiX() - (barLeft() + 4) - 2));
-        if (input.getWidth() != placeholderW || placeholderKey != phKey())
-            updatePlaceholder();
+        if (input.getWidth() != placeholderW || placeholderKey != phKey()) updatePlaceholder();
 
         nickField.visible = wp.dialogOpen;
         nickField.active = wp.dialogOpen;
@@ -433,10 +340,8 @@ public final class CommsScreen extends Screen {
 
         tabIds.clear();
         tabIds.add("all");
-        for (ChannelDef c : cfg.channels)
-            tabIds.add(c.id);
-        if (!tabIds.contains(activeTab))
-            activeTab = "all";
+        for (ChannelDef c : cfg.channels) tabIds.add(c.id);
+        if (!tabIds.contains(activeTab)) activeTab = "all";
 
         applyInitialLayout(cfg);
 
@@ -472,8 +377,7 @@ public final class CommsScreen extends Screen {
             anim = 0f;
             animDir = 1;
             toPill = fromPill;
-            // Si la tecla de abrir sigue pulsada, se ignora hasta que se suelte (evita
-            // cerrar por repetición)
+            // Si la tecla de abrir sigue pulsada, se ignora hasta que se suelte (evita cerrar por repetición)
             openKeyHeld = isOpenKeyDown();
         }
 
@@ -526,17 +430,14 @@ public final class CommsScreen extends Screen {
         clearAndInit();
     }
 
-    // ---- Animación de apertura/cierre
-    // ---------------------------------------------------
+    // ---- Animación de apertura/cierre ---------------------------------------------------
 
     private void requestClose(boolean minimize) {
-        if (animDir < 0)
-            return;
+        if (animDir < 0) return;
         minimizing = minimize;
         toPill = minimize;
         animDir = -1;
-        if (anim <= 0f)
-            closeNow = true;
+        if (anim <= 0f) closeNow = true;
     }
 
     private boolean busy() {
@@ -575,12 +476,10 @@ public final class CommsScreen extends Screen {
         }
     }
 
-    // ---- Datos
-    // --------------------------------------------------------------------------
+    // ---- Datos --------------------------------------------------------------------------
 
     private String tabName(String id) {
-        if (id.equals("all"))
-            return Text.translatable("hoennascension.tab.all").getString();
+        if (id.equals("all")) return Text.translatable("hoennascension.tab.all").getString();
         ChannelDef c = HoennConfig.get().channel(id);
         return c == null ? id : c.name;
     }
@@ -589,8 +488,7 @@ public final class CommsScreen extends Screen {
         String tab = viewTab();
         String key = tab + "/" + (page == Page.WHISPER && wp.peer != null ? wp.peer.toLowerCase() : "");
         int version = HoennAscensionClient.STORE.version;
-        if (version == cacheVersion && msgW() == cacheWidth && key.equals(cacheTab))
-            return;
+        if (version == cacheVersion && msgW() == cacheWidth && key.equals(cacheTab)) return;
 
         cacheVersion = version;
         cacheWidth = msgW();
@@ -614,8 +512,7 @@ public final class CommsScreen extends Screen {
                 t.append(Text.literal("[" + ch.name + "] ").setStyle(Style.EMPTY.withColor(rgb)));
             }
             t.append(Text.literal(e.text));
-            for (OrderedText ot : textRenderer.wrapLines(t, wrapW))
-                lines.add(new Line(ot, rgb, e.mention));
+            for (OrderedText ot : textRenderer.wrapLines(t, wrapW)) lines.add(new Line(ot, rgb, e.mention));
         }
     }
 
@@ -637,8 +534,7 @@ public final class CommsScreen extends Screen {
 
     private boolean whisper(String player, String msg) {
         String tpl = HoennConfig.get().server.privateCommand;
-        if (msg.isEmpty() || !PLAYER.matcher(player).matches() || tpl == null || tpl.isBlank())
-            return false;
+        if (msg.isEmpty() || !PLAYER.matcher(player).matches() || tpl == null || tpl.isBlank()) return false;
         Commands.run(Commands.fill(tpl, "{player}", player, "{message}", msg));
         Whispers.sent(player, msg);
         return true;
@@ -646,8 +542,7 @@ public final class CommsScreen extends Screen {
 
     private void send() {
         String s = input.getText().trim();
-        if (s.isEmpty() || client == null || client.player == null)
-            return;
+        if (s.isEmpty() || client == null || client.player == null) return;
         HoennConfig cfg = HoennConfig.get();
 
         // Página Susurros: el destinatario sale del campo "Para:"
@@ -672,16 +567,13 @@ public final class CommsScreen extends Screen {
         ChannelDef ch = cfg.channel(activeTab);
         String prefix = (ch != null && ch.sendPrefix != null) ? ch.sendPrefix : "";
         String full = s.startsWith("/") ? s : prefix + s;
-        if (full.startsWith("/"))
-            Commands.run(full);
-        else
-            client.player.networkHandler.sendChatMessage(full);
+        if (full.startsWith("/")) Commands.run(full);
+        else client.player.networkHandler.sendChatMessage(full);
         input.setText("");
         scroll = 0;
     }
 
-    // ---- Donación (popup de cantidad)
-    // ---------------------------------------------------
+    // ---- Donación (popup de cantidad) ---------------------------------------------------
 
     private void openDonate() {
         donateOpen = true;
@@ -696,10 +588,7 @@ public final class CommsScreen extends Screen {
         layoutWidgets();
     }
 
-    /**
-     * Ejecuta el comando de donación del servidor (por defecto: /clan deposit
-     * {cantidad}).
-     */
+    /** Ejecuta el comando de donación del servidor (por defecto: /clan deposit {cantidad}). */
     private void donate(long value) {
         Commands.run(Commands.fill(HoennConfig.get().server.donateCommand, "{amount}", String.valueOf(value)));
         DonationTracker.start(value);
@@ -708,12 +597,10 @@ public final class CommsScreen extends Screen {
 
     private void donateCustom() {
         String s = amountField.getText().trim();
-        if (s.isEmpty())
-            return;
+        if (s.isEmpty()) return;
         try {
             long v = Long.parseLong(s);
-            if (v > 0)
-                donate(v);
+            if (v > 0) donate(v);
         } catch (NumberFormatException ignored) {
         }
     }
@@ -722,8 +609,7 @@ public final class CommsScreen extends Screen {
         return (v >= 1000 && v % 1000 == 0) ? (v / 1000) + "K" : String.valueOf(v);
     }
 
-    // ---- Sidebar
-    // ------------------------------------------------------------------------
+    // ---- Sidebar ------------------------------------------------------------------------
 
     private static final int RGB_DONATE = 0x35C46A;
     private static final int RGB_WHISPER = 0xA481DE;
@@ -737,8 +623,7 @@ public final class CommsScreen extends Screen {
         int y = baseTop - sbScroll;
 
         if (expanded) {
-            sbItems.add(new SbItem(KIND_SECTION, "", Text.translatable("hoennascension.sb.channels").getString(), 0, y,
-                    10));
+            sbItems.add(new SbItem(KIND_SECTION, "", Text.translatable("hoennascension.sb.channels").getString(), 0, y, 10));
             y += 12;
         } else {
             y += 2;
@@ -752,27 +637,22 @@ public final class CommsScreen extends Screen {
         sbItems.add(new SbItem(KIND_SEP, "", "", 0, y, 1));
         y += 5;
         if (expanded) {
-            sbItems.add(new SbItem(KIND_SECTION, "", Text.translatable("hoennascension.sb.functions").getString(), 0, y,
-                    10));
+            sbItems.add(new SbItem(KIND_SECTION, "", Text.translatable("hoennascension.sb.functions").getString(), 0, y, 10));
             y += 12;
         }
         if (cfg.server.canDonate()) {
-            sbItems.add(new SbItem(KIND_FUNC, "donate", Text.translatable("hoennascension.donate").getString(),
-                    RGB_DONATE, y, 16));
+            sbItems.add(new SbItem(KIND_FUNC, "donate", Text.translatable("hoennascension.donate").getString(), RGB_DONATE, y, 16));
             y += 17;
         }
-        sbItems.add(new SbItem(KIND_FUNC, "whisper", Text.translatable("hoennascension.page.whispers").getString(),
-                RGB_WHISPER, y, 16));
+        sbItems.add(new SbItem(KIND_FUNC, "whisper", Text.translatable("hoennascension.page.whispers").getString(), RGB_WHISPER, y, 16));
         y += 17;
-        sbItems.add(new SbItem(KIND_FUNC, "settings", Text.translatable("hoennascension.page.settings").getString(),
-                RGB_SETTINGS, y, 16));
+        sbItems.add(new SbItem(KIND_FUNC, "settings", Text.translatable("hoennascension.page.settings").getString(), RGB_SETTINGS, y, 16));
         y += 17;
 
         int contentH = (y + sbScroll) - baseTop;
         int viewH = sbBottom() - (py + HEADER_H) - 4;
         sbMaxScroll = Math.max(0, contentH - viewH);
-        if (sbScroll > sbMaxScroll)
-            sbScroll = sbMaxScroll;
+        if (sbScroll > sbMaxScroll) sbScroll = sbMaxScroll;
     }
 
     private boolean inSidebar(double mx, double my) {
@@ -784,8 +664,7 @@ public final class CommsScreen extends Screen {
     }
 
     private boolean itemActive(SbItem it) {
-        if (it.kind() == KIND_CHANNEL)
-            return page == Page.CHAT && it.id().equals(activeTab);
+        if (it.kind() == KIND_CHANNEL) return page == Page.CHAT && it.id().equals(activeTab);
         if (it.kind() == KIND_FUNC) {
             return (it.id().equals("donate") && donateOpen)
                     || (it.id().equals("whisper") && page == Page.WHISPER);
@@ -794,22 +673,14 @@ public final class CommsScreen extends Screen {
     }
 
     private int unreadFor(SbItem it) {
-        if (itemActive(it))
-            return 0;
-        if (it.kind() == KIND_CHANNEL)
-            return HoennAscensionClient.STORE.unread(it.id());
-        if (it.kind() == KIND_FUNC && it.id().equals("whisper"))
-            return HoennAscensionClient.STORE.unread("private");
+        if (itemActive(it)) return 0;
+        if (it.kind() == KIND_CHANNEL) return HoennAscensionClient.STORE.unread(it.id());
+        if (it.kind() == KIND_FUNC && it.id().equals("whisper")) return HoennAscensionClient.STORE.unread("private");
         return 0;
     }
 
-    private int toggleX() {
-        return px + 1 + sbW / 2 - 7;
-    }
-
-    private int toggleY() {
-        return py + ph - 20;
-    }
+    private int toggleX() { return px + 1 + sbW / 2 - 7; }
+    private int toggleY() { return py + ph - 20; }
 
     private void renderSidebar(DrawContext c, Theme th, int mx, int my, boolean clip) {
         TextRenderer tr = textRenderer;
@@ -821,11 +692,9 @@ public final class CommsScreen extends Screen {
         c.fill(sx, top, sx + sbW, py + ph - 1, 0x22000000);
         c.fillGradient(sx + sbW, top, sx + sbW + 1, py + ph - 1, Gfx.alpha(th.edgeA, 0.8f), Gfx.alpha(th.edgeC, 0.8f));
 
-        if (clip)
-            c.enableScissor(sx, top, sx + sbW, sbBottom());
+        if (clip) c.enableScissor(sx, top, sx + sbW, sbBottom());
         for (SbItem it : sbItems) {
-            if (it.y() + it.h() < top || it.y() > sbBottom())
-                continue;
+            if (it.y() + it.h() < top || it.y() > sbBottom()) continue;
             switch (it.kind()) {
                 case KIND_SECTION -> c.drawText(tr, it.label(), sx + 8, it.y() + 1, Gfx.alpha(th.muted, 0.85f), false);
                 case KIND_SEP -> Gfx.hBand(c, sx + 6, it.y(), sx + sbW - 6, it.y() + 1, th, 0.7f, 0f, 1f);
@@ -835,14 +704,12 @@ public final class CommsScreen extends Screen {
                             && Gfx.inside(mx, my, sx + 2, it.y(), sbW - 3, it.h());
                     int rgb = it.rgb();
                     if (active) {
-                        c.fillGradient(sx + 2, it.y(), sx + sbW - 1, it.y() + it.h(), Gfx.rgb(rgb, 0.32f),
-                                Gfx.rgb(rgb, 0.06f));
+                        c.fillGradient(sx + 2, it.y(), sx + sbW - 1, it.y() + it.h(), Gfx.rgb(rgb, 0.32f), Gfx.rgb(rgb, 0.06f));
                         c.fill(sx + 2, it.y(), sx + 4, it.y() + it.h(), Gfx.rgb(rgb, 1f));
                     } else if (hover) {
                         c.fill(sx + 2, it.y(), sx + sbW - 1, it.y() + it.h(), Gfx.alpha(th.text, 0.14f));
                     }
-                    if (hover && !expanded)
-                        hoverTip = it.label();
+                    if (hover && !expanded) hoverTip = it.label();
 
                     float ia = active ? 1f : 0.8f;
                     if (it.kind() == KIND_CHANNEL) {
@@ -851,16 +718,13 @@ public final class CommsScreen extends Screen {
                         String icon = it.id().equals("all") ? "all" : (chd != null ? chd.iconName() : it.id());
                         if (!Icons.draw(c, icon, sx + 6, it.y() + 2, 12, hid ? ia * 0.5f : ia)) {
                             int dcol = Gfx.rgb(rgb, ia);
-                            if (hid)
-                                Gfx.diamondOutline(c, sx + 12, it.y() + 8, 3, dcol);
-                            else
-                                Gfx.diamond(c, sx + 12, it.y() + 8, 3, dcol);
+                            if (hid) Gfx.diamondOutline(c, sx + 12, it.y() + 8, 3, dcol);
+                            else Gfx.diamond(c, sx + 12, it.y() + 8, 3, dcol);
                         }
                         // Tachado = este canal NO se muestra en el chat normal de Minecraft
                         if (hid) {
                             for (int k = 0; k < 10; k++) {
-                                c.fill(sx + 7 + k, it.y() + 12 - k, sx + 8 + k, it.y() + 13 - k,
-                                        Gfx.alpha(th.text, 0.85f));
+                                c.fill(sx + 7 + k, it.y() + 12 - k, sx + 8 + k, it.y() + 13 - k, Gfx.alpha(th.text, 0.85f));
                             }
                         }
                     } else if (!Icons.draw(c, it.id(), sx + 6, it.y() + 2, 12, ia)) {
@@ -888,17 +752,14 @@ public final class CommsScreen extends Screen {
                 }
             }
         }
-        if (clip)
-            c.disableScissor();
+        if (clip) c.disableScissor();
 
         // Botón de contraer / expandir
         boolean hoverToggle = !donateOpen && Gfx.inside(mx, my, toggleX(), toggleY(), 14, 14);
         c.drawText(tr, sidebarWantsCollapsed(cfg) ? ">" : "<", toggleX() + 4, toggleY() + 3,
                 hoverToggle ? th.text : th.muted, false);
-        if (hoverToggle)
-            hoverTip = Text.translatable(sidebarWantsCollapsed(cfg)
-                    ? "hoennascension.sidebar.expand"
-                    : "hoennascension.sidebar.collapse").getString();
+        if (hoverToggle) hoverTip = Text.translatable(sidebarWantsCollapsed(cfg)
+                ? "hoennascension.sidebar.expand" : "hoennascension.sidebar.collapse").getString();
     }
 
     private void drawFuncIcon(DrawContext c, String id, int x, int y, int rgb, float a) {
@@ -926,20 +787,17 @@ public final class CommsScreen extends Screen {
                 case "donate" -> openDonate();
                 case "whisper" -> setPage(Page.WHISPER);
                 default -> {
-                    if (client != null)
-                        client.setScreen(new HoennConfigScreen(this));
+                    if (client != null) client.setScreen(new HoennConfigScreen(this));
                 }
             }
         }
     }
 
-    // ---- Render
-    // -------------------------------------------------------------------------
+    // ---- Render -------------------------------------------------------------------------
 
     @Override
     public void renderBackground(DrawContext c, int mouseX, int mouseY, float delta) {
-        // Intencionalmente vacío: sin blur vanilla; el oscurecido se dibuja en
-        // render().
+        // Intencionalmente vacío: sin blur vanilla; el oscurecido se dibuja en render().
     }
 
     @Override
@@ -948,8 +806,7 @@ public final class CommsScreen extends Screen {
         Theme th = Theme.byId(cfg.theme);
         TextRenderer tr = textRenderer;
 
-        // El sistema da foco al primer campo al abrir: se deshace para que escribir sea
-        // opt-in
+        // El sistema da foco al primer campo al abrir: se deshace para que escribir sea opt-in
         if (needClearFocus) {
             setFocused(null);
             needClearFocus = false;
@@ -973,18 +830,15 @@ public final class CommsScreen extends Screen {
         boolean animating = busy();
 
         c.fill(0, 0, width, height, ((int) (0x44 * e) << 24));
-        if (closeNow)
-            return;
+        if (closeNow) return;
 
         float bTarget = cfg.bannerHidden ? 0f : 1f;
         bannerAnim += (bTarget - bannerAnim) * Math.min(1f, dt * 12f);
-        if (Math.abs(bTarget - bannerAnim) < 0.004f)
-            bannerAnim = bTarget;
+        if (Math.abs(bTarget - bannerAnim) < 0.004f) bannerAnim = bTarget;
 
         float sTarget = sidebarWantsCollapsed(cfg) ? 0f : 1f;
         sbAnim += (sTarget - sbAnim) * Math.min(1f, dt * 14f);
-        if (Math.abs(sTarget - sbAnim) < 0.01f)
-            sbAnim = sTarget;
+        if (Math.abs(sTarget - sbAnim) < 0.01f) sbAnim = sTarget;
 
         computeHeader();
         computeContent();
@@ -1000,19 +854,16 @@ public final class CommsScreen extends Screen {
         boolean clip = !animating;
 
         if (bannerW > 0) {
-            if (clip)
-                c.enableScissor(0, 0, px + 1, height);
+            if (clip) c.enableScissor(0, 0, px + 1, height);
             Art.draw(c, Art.BANNER, bannerX, bannerY, bannerW, bannerH, Art.BANNER_W, Art.BANNER_H,
                     0.6f + 0.4f * bannerAnim);
-            if (clip)
-                c.disableScissor();
+            if (clip) c.disableScissor();
         }
 
         Gfx.panel(c, px, py, pw, ph, th, cfg.menuOpacity * (0.35f + 0.65f * e));
 
         HoennAscensionClient.STORE.markRead(viewTab());
-        if (page == Page.WHISPER && wp.peer != null)
-            HoennAscensionClient.STORE.markPeerRead(wp.peer);
+        if (page == Page.WHISPER && wp.peer != null) HoennAscensionClient.STORE.markPeerRead(wp.peer);
         rebuildIfNeeded(th);
 
         // Cabecera
@@ -1040,18 +891,15 @@ public final class CommsScreen extends Screen {
         }
 
         boolean hoverPin = Gfx.inside(mx, my, pinX, btnY(), 14, 14);
-        if (cfg.hudPinned)
-            Gfx.diamond(c, pinX + 7, btnY() + 7, 5, th.edgeAt(0.5f));
-        else
-            Gfx.diamondOutline(c, pinX + 7, btnY() + 7, 5, hoverPin ? th.text : th.muted);
+        if (cfg.hudPinned) Gfx.diamond(c, pinX + 7, btnY() + 7, 5, th.edgeAt(0.5f));
+        else Gfx.diamondOutline(c, pinX + 7, btnY() + 7, 5, hoverPin ? th.text : th.muted);
 
         boolean hoverClose = Gfx.inside(mx, my, closeX, btnY(), 14, 14);
         c.drawText(tr, "x", closeX + 5, btnY() + 3, hoverClose ? 0xFFFF6A6A : th.muted, false);
 
         // Sidebar y contenido
         renderSidebar(c, th, mx, my, clip);
-        if (page == Page.WHISPER)
-            renderWhisperTop(c, th, mx, my);
+        if (page == Page.WHISPER) renderWhisperTop(c, th, mx, my);
         renderMessages(c, th, clip);
 
         // Barra de entrada con botón de emojis y de enviar
@@ -1066,8 +914,7 @@ public final class CommsScreen extends Screen {
         Gfx.diamond(c, sendX() + 9, ib + 8, 4, hoverSend ? th.text : th.edgeAt(0.85f));
 
         // Selector de emojis
-        if (emojiOpen && !donateOpen)
-            renderEmojiPicker(c, th, mx, my);
+        if (emojiOpen && !donateOpen) renderEmojiPicker(c, th, mx, my);
 
         // Agarre de redimensionado
         boolean hoverGrip = Gfx.inside(mx, my, px + pw - EDGE - 6, py + ph - EDGE - 6, EDGE + 8, EDGE + 8);
@@ -1076,12 +923,9 @@ public final class CommsScreen extends Screen {
             for (int k = 0; k < 3 - r; k++)
                 c.fill(px + pw - 5 - k * 3, py + ph - 5 - r * 3, px + pw - 4 - k * 3, py + ph - 4 - r * 3, grip);
 
-        // Popup de donación (encima de todo; el campo de cantidad se dibuja después
-        // como widget)
-        if (donateOpen)
-            renderDonateDialog(c, th, mx, my);
-        if (wp.dialogOpen)
-            wp.renderDialog(c, th, tr, mx, my, px, py, pw, ph, dlgX(), dlgY(), dlgW(), dlgH(), nickField);
+        // Popup de donación (encima de todo; el campo de cantidad se dibuja después como widget)
+        if (donateOpen) renderDonateDialog(c, th, mx, my);
+        if (wp.dialogOpen) wp.renderDialog(c, th, tr, mx, my, px, py, pw, ph, dlgX(), dlgY(), dlgW(), dlgH(), nickField);
 
         super.render(c, mx, my, delta);
 
@@ -1096,29 +940,19 @@ public final class CommsScreen extends Screen {
             c.drawText(tr, dim, bx0 + 4, by0 + 2, atLimit ? 0xFFFFC247 : th.text, false);
         }
 
-        if (animating)
-            c.getMatrices().pop();
+        if (animating) c.getMatrices().pop();
         HoennAscensionClient.POPUPS.renderOverScreen(c);
-        if (animating || donateOpen || wp.dialogOpen)
-            return;
+        if (animating || donateOpen || wp.dialogOpen) return;
 
         boolean hoverBanner = overBanner(mx, my);
-        if (hoverPin)
-            c.drawTooltip(tr, Text.translatable(cfg.hudPinned
-                    ? "hoennascension.tooltip.pin.on"
-                    : "hoennascension.tooltip.pin.off"), mx, my);
-        else if (hoverTheme)
-            c.drawTooltip(tr, Text.translatable("hoennascension.theme." + th.id), mx, my);
-        else if (hoverClose)
-            c.drawTooltip(tr, Text.translatable("hoennascension.tooltip.minimize"), mx, my);
-        else if (hoverEmoji && !emojiOpen)
-            c.drawTooltip(tr, Text.translatable("hoennascension.tooltip.emoji"), mx, my);
-        else if (hoverBanner)
-            c.drawTooltip(tr, Text.translatable(cfg.bannerHidden
-                    ? "hoennascension.tooltip.banner.show"
-                    : "hoennascension.tooltip.banner.hide"), mx, my);
-        else if (hoverTip != null)
-            c.drawTooltip(tr, Text.literal(hoverTip), mx, my);
+        if (hoverPin) c.drawTooltip(tr, Text.translatable(cfg.hudPinned
+                ? "hoennascension.tooltip.pin.on" : "hoennascension.tooltip.pin.off"), mx, my);
+        else if (hoverTheme) c.drawTooltip(tr, Text.translatable("hoennascension.theme." + th.id), mx, my);
+        else if (hoverClose) c.drawTooltip(tr, Text.translatable("hoennascension.tooltip.minimize"), mx, my);
+        else if (hoverEmoji && !emojiOpen) c.drawTooltip(tr, Text.translatable("hoennascension.tooltip.emoji"), mx, my);
+        else if (hoverBanner) c.drawTooltip(tr, Text.translatable(cfg.bannerHidden
+                ? "hoennascension.tooltip.banner.show" : "hoennascension.tooltip.banner.hide"), mx, my);
+        else if (hoverTip != null) c.drawTooltip(tr, Text.literal(hoverTip), mx, my);
     }
 
     private void renderMessages(DrawContext c, Theme th, boolean clip) {
@@ -1131,18 +965,15 @@ public final class CommsScreen extends Screen {
         scroll = Math.max(0, Math.min(scroll, maxScroll));
 
         c.fill(ml + 4, lt - 2, px + pw - 4, lb + 2, 0x22000000);
-        if (clip)
-            c.enableScissor(ml + 4, lt - 2, px + pw - 4, lb + 2);
+        if (clip) c.enableScissor(ml + 4, lt - 2, px + pw - 4, lb + 2);
         int y = lb - LINE_H;
         for (int idx = lines.size() - 1 - scroll; idx >= 0 && y > lt - LINE_H; idx--, y -= LINE_H) {
             Line l = lines.get(idx);
-            if (l.mention())
-                c.fill(ml + 6, y - 1, px + pw - 10, y + 9, Gfx.alpha(th.edgeB, 0.30f));
+            if (l.mention()) c.fill(ml + 6, y - 1, px + pw - 10, y + 9, Gfx.alpha(th.edgeB, 0.30f));
             c.fill(ml + 6, y - 1, ml + 8, y + 9, Gfx.rgb(l.rgb(), 0.9f));
             c.drawText(tr, l.text(), ml + 12, y, th.text, !th.light);
         }
-        if (clip)
-            c.disableScissor();
+        if (clip) c.disableScissor();
 
         if (lines.size() > vis) {
             int trackH = lb - lt;
@@ -1155,14 +986,11 @@ public final class CommsScreen extends Screen {
         }
     }
 
-    /**
-     * Lista de conversaciones (con caras) y cabecera de la conversación abierta.
-     */
+    /** Lista de conversaciones (con caras) y cabecera de la conversación abierta. */
     private void renderWhisperTop(DrawContext c, Theme th, int mx, int my) {
-        String[] tip = { null };
+        String[] tip = {null};
         wp.render(c, th, textRenderer, mx, my, donateOpen || wp.dialogOpen, tip);
-        if (tip[0] != null)
-            hoverTip = tip[0];
+        if (tip[0] != null) hoverTip = tip[0];
         wp.renderHeader(c, th, textRenderer, msgLeft() + 4, py + HEADER_H + 6, px + pw - 8 - (msgLeft() + 4));
     }
 
@@ -1175,8 +1003,7 @@ public final class CommsScreen extends Screen {
         for (int i = 0; i < EMOJIS.length; i++) {
             int cxx = x0 + EMO_PAD + (i % EMO_COLS) * EMO_CELL;
             int cyy = y0 + EMO_PAD + (i / EMO_COLS) * EMO_CELL;
-            if (i == hover)
-                c.fill(cxx, cyy, cxx + EMO_CELL, cyy + EMO_CELL, Gfx.alpha(th.text, 0.18f));
+            if (i == hover) c.fill(cxx, cyy, cxx + EMO_CELL, cyy + EMO_CELL, Gfx.alpha(th.text, 0.18f));
             String g = EMOJIS[i];
             c.drawText(tr, g, cxx + (EMO_CELL - tr.getWidth(g)) / 2, cyy + 4, th.text, false);
         }
@@ -1222,16 +1049,13 @@ public final class CommsScreen extends Screen {
         c.drawText(tr, preview, dx + 10, dy + 102, Gfx.alpha(th.muted, 0.8f), false);
     }
 
-    // ---- Entrada
-    // ------------------------------------------------------------------------
+    // ---- Entrada ------------------------------------------------------------------------
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
-        if (busy())
-            return true;
+        if (busy()) return true;
 
-        // Clic derecho sobre un canal del sidebar: ocultar / mostrar sus mensajes en el
-        // chat normal
+        // Clic derecho sobre un canal del sidebar: ocultar / mostrar sus mensajes en el chat normal
         if (button == 1 && !donateOpen) {
             computeHeader();
             computeContent();
@@ -1251,12 +1075,10 @@ public final class CommsScreen extends Screen {
             }
         }
 
-        // Clic derecho en la lista de susurros: borrar conversación (pide un segundo
-        // clic para confirmar)
+        // Clic derecho en la lista de susurros: borrar conversación (pide un segundo clic para confirmar)
         if (button == 1 && page == Page.WHISPER && !donateOpen && !wp.dialogOpen) {
             computeContent();
-            if (wp.click(mx, my, 1))
-                return true;
+            if (wp.click(mx, my, 1)) return true;
         }
 
         if (button == 0) {
@@ -1306,8 +1128,7 @@ public final class CommsScreen extends Screen {
                 boolean onButton = Gfx.inside(mx, my, emojiX(), inputBarY(), 18, 16);
                 boolean inPicker = Gfx.inside(mx, my, emoX(), emoY(), emoW(), emoH());
                 emojiOpen = false;
-                if (onButton || inPicker)
-                    return true;
+                if (onButton || inPicker) return true;
             }
 
             if (Gfx.inside(mx, my, closeX, btnY(), 14, 14)) {
@@ -1368,8 +1189,7 @@ public final class CommsScreen extends Screen {
             }
 
             // Página Susurros: lista de conversaciones
-            if (page == Page.WHISPER && wp.click(mx, my, 0))
-                return true;
+            if (page == Page.WHISPER && wp.click(mx, my, 0)) return true;
 
             // Arrastrar desde la cabecera; doble clic = restaurar posición y tamaño
             if (Gfx.inside(mx, my, px, py, pw, HEADER_H)) {
@@ -1391,10 +1211,8 @@ public final class CommsScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
-        if (busy())
-            return true;
-        if (donateOpen || wp.dialogOpen)
-            return super.mouseDragged(mx, my, button, dx, dy);
+        if (busy()) return true;
+        if (donateOpen || wp.dialogOpen) return super.mouseDragged(mx, my, button, dx, dy);
         if (button == 0) {
             HoennConfig cfg = HoennConfig.get();
             if (dragging) {
@@ -1433,17 +1251,14 @@ public final class CommsScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        if (donateOpen || wp.dialogOpen)
-            return true;
+        if (donateOpen || wp.dialogOpen) return true;
         if (vertical != 0) {
-            if (page == Page.WHISPER && wp.scroll(mx, my, vertical))
-                return true;
+            if (page == Page.WHISPER && wp.scroll(mx, my, vertical)) return true;
             if (inSidebar(mx, my)) {
                 sbScroll = clamp(sbScroll - (int) Math.signum(vertical) * 12, 0, sbMaxScroll);
             } else {
                 scroll += (int) Math.signum(vertical) * 3;
-                if (scroll < 0)
-                    scroll = 0;
+                if (scroll < 0) scroll = 0;
             }
             return true;
         }
@@ -1474,11 +1289,9 @@ public final class CommsScreen extends Screen {
             }
         }
 
-        // La misma tecla que abre el panel lo cierra, salvo que se esté escribiendo en
-        // un campo
+        // La misma tecla que abre el panel lo cierra, salvo que se esté escribiendo en un campo
         if (!anyFieldFocused() && HoennAscensionClient.OPEN.matchesKey(keyCode, scanCode)) {
-            if (!openKeyHeld)
-                requestClose(false);
+            if (!openKeyHeld) requestClose(false);
             return true;
         }
 
@@ -1514,8 +1327,7 @@ public final class CommsScreen extends Screen {
 
     @Override
     public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
-        if (HoennAscensionClient.OPEN.matchesKey(keyCode, scanCode))
-            openKeyHeld = false;
+        if (HoennAscensionClient.OPEN.matchesKey(keyCode, scanCode)) openKeyHeld = false;
         return super.keyReleased(keyCode, scanCode, modifiers);
     }
 
@@ -1535,5 +1347,294 @@ public final class CommsScreen extends Screen {
         HoennConfig.get().minimized = minimizing;
         HoennConfig.get().save();
         HoennAscensionClient.STORE.save();
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Panel de la página Susurros. Va en este mismo archivo a propósito: así no depende de otro archivo
+// ni de su carpeta/paquete.
+// ---------------------------------------------------------------------------------------------
+/**
+ * Página Susurros: lista de conversaciones (con la cara y el nombre de cada jugador), crear una nueva
+ * con buscador de jugadores conectados, y borrar conversaciones.
+ */
+final class WhisperPane {
+    private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_.]{1,32}");
+    private static final int ROW_H = 18;
+    private static final int RGB = 0xA481DE;
+
+    /** Conversación abierta (null = todos los susurros). */
+    String peer;
+    /** Popup "Nuevo susurro" abierto. */
+    boolean dialogOpen;
+
+    private int scroll;
+    private String armed;
+    private long armedAt;
+    private int lx, ly, lw, lh;
+
+    // ---- Geometría ----------------------------------------------------------------------
+
+    void layout(int contentLeft, int top, int contentW, int bottom) {
+        lx = contentLeft + 4;
+        ly = top;
+        lw = contentW >= 300 ? Math.max(100, Math.min(130, contentW / 3)) : 32;
+        lh = Math.max(40, bottom - top);
+    }
+
+    /** Donde empieza el área de mensajes (a la derecha de la lista). */
+    int contentLeft() {
+        return lx + lw + 6;
+    }
+
+    private boolean expanded() {
+        return lw >= 64;
+    }
+
+    private int visibleRows() {
+        return Math.max(1, (lh - 22) / ROW_H);
+    }
+
+    private int totalRows() {
+        return 1 + HoennConfig.get().whisperContacts.size();
+    }
+
+    private String nameAt(int row) {
+        return row == 0 ? null : HoennConfig.get().whisperContacts.get(row - 1);
+    }
+
+    private int rowY(int visibleIndex) {
+        return ly + 22 + visibleIndex * ROW_H;
+    }
+
+    // ---- Lista de conversaciones --------------------------------------------------------
+
+    void render(DrawContext c, Theme th, TextRenderer tr, int mx, int my, boolean modal, String[] tip) {
+        c.fill(lx, ly, lx + lw, ly + lh, 0x22000000);
+
+        // Botón Nuevo
+        boolean hoverNew = !modal && Gfx.inside(mx, my, lx + 2, ly + 2, lw - 4, 16);
+        c.fillGradient(lx + 2, ly + 2, lx + lw - 2, ly + 18,
+                Gfx.rgb(RGB, hoverNew ? 0.65f : 0.4f), Gfx.rgb(RGB, hoverNew ? 0.35f : 0.18f));
+        String newLabel = Text.translatable("hoennascension.whisper.new").getString();
+        String nl = expanded() ? "+ " + newLabel : "+";
+        c.drawText(tr, nl, lx + lw / 2 - tr.getWidth(nl) / 2, ly + 6, th.text, !th.light);
+        if (hoverNew && !expanded()) tip[0] = newLabel;
+
+        int total = totalRows();
+        int vis = visibleRows();
+        scroll = Math.max(0, Math.min(scroll, Math.max(0, total - vis)));
+        long now = System.currentTimeMillis();
+
+        for (int r = 0; r < vis && r + scroll < total; r++) {
+            int row = r + scroll;
+            String name = nameAt(row);
+            int y = rowY(r);
+            boolean selected = name == null ? peer == null : name.equalsIgnoreCase(peer);
+            boolean hover = !modal && Gfx.inside(mx, my, lx + 1, y, lw - 2, ROW_H - 1);
+            boolean isArmed = name != null && name.equalsIgnoreCase(armed) && now - armedAt < 2000;
+
+            if (isArmed) {
+                c.fill(lx + 1, y, lx + lw - 1, y + ROW_H - 1, 0x66E0463F);
+            } else if (selected) {
+                c.fillGradient(lx + 1, y, lx + lw - 1, y + ROW_H - 1, Gfx.rgb(RGB, 0.35f), Gfx.rgb(RGB, 0.08f));
+                c.fill(lx + 1, y, lx + 3, y + ROW_H - 1, Gfx.rgb(RGB, 1f));
+            } else if (hover) {
+                c.fill(lx + 1, y, lx + lw - 1, y + ROW_H - 1, Gfx.alpha(th.text, 0.12f));
+            }
+
+            int iconX = lx + 5;
+            int iconY = y + 3;
+            String label;
+            if (name == null) {
+                Icons.draw(c, "whisper", iconX, iconY, 12, 1f);
+                label = Text.translatable("hoennascension.whisper.all.short").getString();
+            } else {
+                Faces.draw(c, name, iconX, iconY, 12);
+                if (Faces.isOnline(name)) c.fill(iconX + 9, iconY + 9, iconX + 13, iconY + 13, 0xFF35C46A);
+                label = name;
+            }
+
+            int unread = name == null ? 0 : HoennAscensionClient.STORE.unreadPeer(name);
+            if (hover && !expanded()) tip[0] = label;
+
+            if (expanded()) {
+                int xW = name != null ? 14 : 2;
+                String badge = unread > 0 ? (unread > 99 ? "99+" : String.valueOf(unread)) : "";
+                int badgeW = badge.isEmpty() ? 0 : tr.getWidth(badge) + 4;
+                int max = Math.max(0, lw - 5 - 12 - 5 - xW - badgeW - 3);
+                c.drawText(tr, tr.trimToWidth(label, max), iconX + 17, y + 5, selected ? th.text : th.muted, !th.light);
+                if (unread > 0) {
+                    int bx = lx + lw - xW - badgeW - 2;
+                    c.fill(bx, y + 4, bx + badgeW, y + 13, Gfx.rgb(RGB, 0.9f));
+                    c.drawText(tr, badge, bx + 2, y + 5, 0xFFFFFFFF, false);
+                }
+                if (name != null && (hover || isArmed)) {
+                    boolean onX = Gfx.inside(mx, my, lx + lw - 14, y + 3, 12, 12);
+                    c.drawText(tr, "x", lx + lw - 11, y + 5, isArmed || onX ? 0xFFFF6A6A : th.muted, false);
+                }
+            } else if (unread > 0) {
+                c.fill(iconX + 9, iconY - 1, iconX + 14, iconY + 4, Gfx.rgb(RGB, 1f));
+            }
+        }
+    }
+
+    /** Cabecera de la conversación abierta: cara, nombre y si está conectado. */
+    void renderHeader(DrawContext c, Theme th, TextRenderer tr, int x, int y, int w) {
+        if (peer == null) {
+            Icons.draw(c, "whisper", x, y, 14, 1f);
+            c.drawText(tr, tr.trimToWidth(Text.translatable("hoennascension.whisper.all").getString(), Math.max(10, w - 20)),
+                    x + 19, y + 3, th.text, !th.light);
+        } else {
+            Faces.draw(c, peer, x, y, 14);
+            boolean on = Faces.isOnline(peer);
+            String status = Text.translatable(on ? "hoennascension.whisper.online" : "hoennascension.whisper.offline").getString();
+            int statusW = tr.getWidth(status) + 8;
+            String n = tr.trimToWidth(peer, Math.max(10, w - 19 - statusW));
+            c.drawText(tr, n, x + 19, y + 3, th.text, !th.light);
+            c.fill(x + 19 + tr.getWidth(n) + 6, y + 5, x + 19 + tr.getWidth(n) + 10, y + 9, on ? 0xFF35C46A : 0xFF8A94C0);
+            c.drawText(tr, status, x + 19 + tr.getWidth(n) + 13, y + 3, th.muted, false);
+        }
+        c.fill(x, y + 16, x + w, y + 17, Gfx.alpha(th.text, 0.15f));
+    }
+
+    /** Clic en la lista. button 0 = seleccionar / nuevo / x; button 1 = borrar. */
+    boolean click(double mx, double my, int button) {
+        if (!Gfx.inside(mx, my, lx, ly, lw, lh)) return false;
+        if (button == 0 && Gfx.inside(mx, my, lx + 2, ly + 2, lw - 4, 16)) {
+            dialogOpen = true;
+            return true;
+        }
+        int vis = visibleRows();
+        int total = totalRows();
+        for (int r = 0; r < vis && r + scroll < total; r++) {
+            int row = r + scroll;
+            String name = nameAt(row);
+            int y = rowY(r);
+            if (!Gfx.inside(mx, my, lx + 1, y, lw - 2, ROW_H - 1)) continue;
+            if (name == null) {
+                if (button == 0) peer = null;
+                return true;
+            }
+            boolean onX = expanded() && Gfx.inside(mx, my, lx + lw - 14, y + 3, 12, 12);
+            if (button == 1 || onX) {
+                requestDelete(name);
+            } else {
+                peer = name;
+                HoennAscensionClient.STORE.markPeerRead(name);
+            }
+            return true;
+        }
+        return true;
+    }
+
+    boolean scroll(double mx, double my, double vertical) {
+        if (!Gfx.inside(mx, my, lx, ly, lw, lh)) return false;
+        scroll -= (int) Math.signum(vertical);
+        scroll = Math.max(0, Math.min(scroll, Math.max(0, totalRows() - visibleRows())));
+        return true;
+    }
+
+    // ---- Borrar -------------------------------------------------------------------------
+
+    /** Primer clic: marca la conversación en rojo; segundo clic (en 2 s): la borra con su historial. */
+    private void requestDelete(String name) {
+        long now = System.currentTimeMillis();
+        if (name.equalsIgnoreCase(armed) && now - armedAt < 2000) {
+            HoennConfig.get().removeContact(name);
+            HoennAscensionClient.STORE.removePeer(name);
+            if (name.equalsIgnoreCase(peer)) peer = null;
+            armed = null;
+        } else {
+            armed = name;
+            armedAt = now;
+        }
+    }
+
+    // ---- Popup "Nuevo susurro" con buscador ---------------------------------------------
+
+    /** Opciones: el nombre escrito (si es válido y no está conectado) y los jugadores conectados que coinciden. */
+    private List<String[]> rows(String q) {
+        List<String[]> out = new ArrayList<>();
+        List<String> online = Faces.onlineMatching(q, 4);
+        boolean exact = false;
+        for (String n : online) if (n.equalsIgnoreCase(q)) exact = true;
+        if (!q.isEmpty() && NAME.matcher(q).matches() && !exact) out.add(new String[]{q, "typed"});
+        for (String n : online) {
+            if (out.size() >= 4) break;
+            out.add(new String[]{n, "online"});
+        }
+        return out;
+    }
+
+    void renderDialog(DrawContext c, Theme th, TextRenderer tr, int mx, int my,
+                      int px, int py, int pw, int ph, int dx, int dy, int dw, int dh, TextFieldWidget field) {
+        c.fill(px + 1, py + 1, px + pw - 1, py + ph - 1, 0xAA000000);
+        Gfx.panel(c, dx, dy, dw, dh, th, 0.95f);
+
+        c.drawText(tr, Text.translatable("hoennascension.whisper.new.title"), dx + 10, dy + 10, th.text, !th.light);
+        boolean hoverX = Gfx.inside(mx, my, dx + dw - 18, dy + 6, 12, 12);
+        c.drawText(tr, "x", dx + dw - 15, dy + 9, hoverX ? 0xFFFF6A6A : th.muted, false);
+
+        c.fill(dx + 10, dy + 26, dx + dw - 10, dy + 42, th.inputBg);
+        Gfx.hBand(c, dx + 10, dy + 26, dx + dw - 10, dy + 27, th, 0.8f, 0f, 1f);
+
+        List<String[]> rows = rows(field.getText().trim());
+        if (rows.isEmpty()) {
+            c.drawText(tr, tr.trimToWidth(Text.translatable("hoennascension.whisper.none").getString(), dw - 20),
+                    dx + 10, dy + 52, th.muted, false);
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            String name = rows.get(i)[0];
+            boolean typed = rows.get(i)[1].equals("typed");
+            int y = dy + 48 + i * 16;
+            if (Gfx.inside(mx, my, dx + 8, y, dw - 16, 16)) c.fill(dx + 8, y, dx + dw - 8, y + 16, Gfx.alpha(th.text, 0.14f));
+            Faces.draw(c, name, dx + 12, y + 2, 12);
+            String right = Text.translatable(typed ? "hoennascension.whisper.start" : "hoennascension.whisper.online").getString();
+            int rw = tr.getWidth(right);
+            c.drawText(tr, tr.trimToWidth(name, Math.max(10, dw - 40 - rw)), dx + 28, y + 4, th.text, !th.light);
+            c.drawText(tr, right, dx + dw - 12 - rw, y + 4, typed ? th.muted : 0xFF35C46A, false);
+        }
+    }
+
+    /** @return true si el clic se consumió (el campo de texto lo gestiona el que llama si devuelve false). */
+    boolean clickDialog(double mx, double my, int dx, int dy, int dw, int dh, TextFieldWidget field) {
+        if (!Gfx.inside(mx, my, dx, dy, dw, dh) || Gfx.inside(mx, my, dx + dw - 18, dy + 6, 12, 12)) {
+            closeDialog(field);
+            return true;
+        }
+        List<String[]> rows = rows(field.getText().trim());
+        for (int i = 0; i < rows.size(); i++) {
+            if (Gfx.inside(mx, my, dx + 8, dy + 48 + i * 16, dw - 16, 16)) {
+                create(rows.get(i)[0], field);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Intro en el campo: abre el nombre escrito o, si está vacío, el primer jugador sugerido. */
+    void submitNick(TextFieldWidget field) {
+        String q = field.getText().trim();
+        if (NAME.matcher(q).matches()) {
+            create(q, field);
+            return;
+        }
+        List<String[]> rows = rows(q);
+        if (!rows.isEmpty()) create(rows.get(0)[0], field);
+    }
+
+    private void create(String name, TextFieldWidget field) {
+        String real = Faces.canonicalName(name);
+        HoennConfig.get().addContact(real);
+        HoennConfig.get().save();
+        peer = real;
+        HoennAscensionClient.STORE.markPeerRead(real);
+        closeDialog(field);
+    }
+
+    void closeDialog(TextFieldWidget field) {
+        dialogOpen = false;
+        field.setText("");
     }
 }

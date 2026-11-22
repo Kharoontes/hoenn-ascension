@@ -1,4 +1,4 @@
-package dev.hoennascension.core;
+package dev.hoennascension.ui;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -13,8 +13,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
-import dev.hoennascension.ui.Art;
 
 /**
  * Caras de jugadores: skin real si está conectado, la última conocida o una
