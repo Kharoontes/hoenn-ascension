@@ -1,10 +1,8 @@
-package dev.hoennascension.core;
+package dev.hoennascension.ui;
 
 import dev.hoennascension.HoennAscensionClient;
 import dev.hoennascension.config.HoennConfig;
-import dev.hoennascension.ui.Gfx;
-import dev.hoennascension.ui.Icons;
-import dev.hoennascension.ui.Theme;
+import dev.hoennascension.core.Faces;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.TextFieldWidget;
@@ -15,8 +13,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * Página Susurros: lista de conversaciones (con la cara y el nombre de cada
- * jugador), crear una nueva
+ * Página Susurros: lista de conversaciones (con la cara y el nombre de cada jugador), crear una nueva
  * con buscador de jugadores conectados, y borrar conversaciones.
  */
 final class WhisperPane {
@@ -34,8 +31,7 @@ final class WhisperPane {
     private long armedAt;
     private int lx, ly, lw, lh;
 
-    // ---- Geometría
-    // ----------------------------------------------------------------------
+    // ---- Geometría ----------------------------------------------------------------------
 
     void layout(int contentLeft, int top, int contentW, int bottom) {
         lx = contentLeft + 4;
@@ -69,8 +65,7 @@ final class WhisperPane {
         return ly + 22 + visibleIndex * ROW_H;
     }
 
-    // ---- Lista de conversaciones
-    // --------------------------------------------------------
+    // ---- Lista de conversaciones --------------------------------------------------------
 
     void render(DrawContext c, Theme th, TextRenderer tr, int mx, int my, boolean modal, String[] tip) {
         c.fill(lx, ly, lx + lw, ly + lh, 0x22000000);
@@ -82,8 +77,7 @@ final class WhisperPane {
         String newLabel = Text.translatable("hoennascension.whisper.new").getString();
         String nl = expanded() ? "+ " + newLabel : "+";
         c.drawText(tr, nl, lx + lw / 2 - tr.getWidth(nl) / 2, ly + 6, th.text, !th.light);
-        if (hoverNew && !expanded())
-            tip[0] = newLabel;
+        if (hoverNew && !expanded()) tip[0] = newLabel;
 
         int total = totalRows();
         int vis = visibleRows();
@@ -115,14 +109,12 @@ final class WhisperPane {
                 label = Text.translatable("hoennascension.whisper.all.short").getString();
             } else {
                 Faces.draw(c, name, iconX, iconY, 12);
-                if (Faces.isOnline(name))
-                    c.fill(iconX + 9, iconY + 9, iconX + 13, iconY + 13, 0xFF35C46A);
+                if (Faces.isOnline(name)) c.fill(iconX + 9, iconY + 9, iconX + 13, iconY + 13, 0xFF35C46A);
                 label = name;
             }
 
             int unread = name == null ? 0 : HoennAscensionClient.STORE.unreadPeer(name);
-            if (hover && !expanded())
-                tip[0] = label;
+            if (hover && !expanded()) tip[0] = label;
 
             if (expanded()) {
                 int xW = name != null ? 14 : 2;
@@ -149,19 +141,16 @@ final class WhisperPane {
     void renderHeader(DrawContext c, Theme th, TextRenderer tr, int x, int y, int w) {
         if (peer == null) {
             Icons.draw(c, "whisper", x, y, 14, 1f);
-            c.drawText(tr,
-                    tr.trimToWidth(Text.translatable("hoennascension.whisper.all").getString(), Math.max(10, w - 20)),
+            c.drawText(tr, tr.trimToWidth(Text.translatable("hoennascension.whisper.all").getString(), Math.max(10, w - 20)),
                     x + 19, y + 3, th.text, !th.light);
         } else {
             Faces.draw(c, peer, x, y, 14);
             boolean on = Faces.isOnline(peer);
-            String status = Text.translatable(on ? "hoennascension.whisper.online" : "hoennascension.whisper.offline")
-                    .getString();
+            String status = Text.translatable(on ? "hoennascension.whisper.online" : "hoennascension.whisper.offline").getString();
             int statusW = tr.getWidth(status) + 8;
             String n = tr.trimToWidth(peer, Math.max(10, w - 19 - statusW));
             c.drawText(tr, n, x + 19, y + 3, th.text, !th.light);
-            c.fill(x + 19 + tr.getWidth(n) + 6, y + 5, x + 19 + tr.getWidth(n) + 10, y + 9,
-                    on ? 0xFF35C46A : 0xFF8A94C0);
+            c.fill(x + 19 + tr.getWidth(n) + 6, y + 5, x + 19 + tr.getWidth(n) + 10, y + 9, on ? 0xFF35C46A : 0xFF8A94C0);
             c.drawText(tr, status, x + 19 + tr.getWidth(n) + 13, y + 3, th.muted, false);
         }
         c.fill(x, y + 16, x + w, y + 17, Gfx.alpha(th.text, 0.15f));
@@ -169,8 +158,7 @@ final class WhisperPane {
 
     /** Clic en la lista. button 0 = seleccionar / nuevo / x; button 1 = borrar. */
     boolean click(double mx, double my, int button) {
-        if (!Gfx.inside(mx, my, lx, ly, lw, lh))
-            return false;
+        if (!Gfx.inside(mx, my, lx, ly, lw, lh)) return false;
         if (button == 0 && Gfx.inside(mx, my, lx + 2, ly + 2, lw - 4, 16)) {
             dialogOpen = true;
             return true;
@@ -181,11 +169,9 @@ final class WhisperPane {
             int row = r + scroll;
             String name = nameAt(row);
             int y = rowY(r);
-            if (!Gfx.inside(mx, my, lx + 1, y, lw - 2, ROW_H - 1))
-                continue;
+            if (!Gfx.inside(mx, my, lx + 1, y, lw - 2, ROW_H - 1)) continue;
             if (name == null) {
-                if (button == 0)
-                    peer = null;
+                if (button == 0) peer = null;
                 return true;
             }
             boolean onX = expanded() && Gfx.inside(mx, my, lx + lw - 14, y + 3, 12, 12);
@@ -201,27 +187,21 @@ final class WhisperPane {
     }
 
     boolean scroll(double mx, double my, double vertical) {
-        if (!Gfx.inside(mx, my, lx, ly, lw, lh))
-            return false;
+        if (!Gfx.inside(mx, my, lx, ly, lw, lh)) return false;
         scroll -= (int) Math.signum(vertical);
         scroll = Math.max(0, Math.min(scroll, Math.max(0, totalRows() - visibleRows())));
         return true;
     }
 
-    // ---- Borrar
-    // -------------------------------------------------------------------------
+    // ---- Borrar -------------------------------------------------------------------------
 
-    /**
-     * Primer clic: marca la conversación en rojo; segundo clic (en 2 s): la borra
-     * con su historial.
-     */
+    /** Primer clic: marca la conversación en rojo; segundo clic (en 2 s): la borra con su historial. */
     private void requestDelete(String name) {
         long now = System.currentTimeMillis();
         if (name.equalsIgnoreCase(armed) && now - armedAt < 2000) {
             HoennConfig.get().removeContact(name);
             HoennAscensionClient.STORE.removePeer(name);
-            if (name.equalsIgnoreCase(peer))
-                peer = null;
+            if (name.equalsIgnoreCase(peer)) peer = null;
             armed = null;
         } else {
             armed = name;
@@ -229,32 +209,24 @@ final class WhisperPane {
         }
     }
 
-    // ---- Popup "Nuevo susurro" con buscador
-    // ---------------------------------------------
+    // ---- Popup "Nuevo susurro" con buscador ---------------------------------------------
 
-    /**
-     * Opciones: el nombre escrito (si es válido y no está conectado) y los
-     * jugadores conectados que coinciden.
-     */
+    /** Opciones: el nombre escrito (si es válido y no está conectado) y los jugadores conectados que coinciden. */
     private List<String[]> rows(String q) {
         List<String[]> out = new ArrayList<>();
         List<String> online = Faces.onlineMatching(q, 4);
         boolean exact = false;
-        for (String n : online)
-            if (n.equalsIgnoreCase(q))
-                exact = true;
-        if (!q.isEmpty() && NAME.matcher(q).matches() && !exact)
-            out.add(new String[] { q, "typed" });
+        for (String n : online) if (n.equalsIgnoreCase(q)) exact = true;
+        if (!q.isEmpty() && NAME.matcher(q).matches() && !exact) out.add(new String[]{q, "typed"});
         for (String n : online) {
-            if (out.size() >= 4)
-                break;
-            out.add(new String[] { n, "online" });
+            if (out.size() >= 4) break;
+            out.add(new String[]{n, "online"});
         }
         return out;
     }
 
     void renderDialog(DrawContext c, Theme th, TextRenderer tr, int mx, int my,
-            int px, int py, int pw, int ph, int dx, int dy, int dw, int dh, TextFieldWidget field) {
+                      int px, int py, int pw, int ph, int dx, int dy, int dw, int dh, TextFieldWidget field) {
         c.fill(px + 1, py + 1, px + pw - 1, py + ph - 1, 0xAA000000);
         Gfx.panel(c, dx, dy, dw, dh, th, 0.95f);
 
@@ -274,21 +246,16 @@ final class WhisperPane {
             String name = rows.get(i)[0];
             boolean typed = rows.get(i)[1].equals("typed");
             int y = dy + 48 + i * 16;
-            if (Gfx.inside(mx, my, dx + 8, y, dw - 16, 16))
-                c.fill(dx + 8, y, dx + dw - 8, y + 16, Gfx.alpha(th.text, 0.14f));
+            if (Gfx.inside(mx, my, dx + 8, y, dw - 16, 16)) c.fill(dx + 8, y, dx + dw - 8, y + 16, Gfx.alpha(th.text, 0.14f));
             Faces.draw(c, name, dx + 12, y + 2, 12);
-            String right = Text.translatable(typed ? "hoennascension.whisper.start" : "hoennascension.whisper.online")
-                    .getString();
+            String right = Text.translatable(typed ? "hoennascension.whisper.start" : "hoennascension.whisper.online").getString();
             int rw = tr.getWidth(right);
             c.drawText(tr, tr.trimToWidth(name, Math.max(10, dw - 40 - rw)), dx + 28, y + 4, th.text, !th.light);
             c.drawText(tr, right, dx + dw - 12 - rw, y + 4, typed ? th.muted : 0xFF35C46A, false);
         }
     }
 
-    /**
-     * @return true si el clic se consumió (el campo de texto lo gestiona el que
-     *         llama si devuelve false).
-     */
+    /** @return true si el clic se consumió (el campo de texto lo gestiona el que llama si devuelve false). */
     boolean clickDialog(double mx, double my, int dx, int dy, int dw, int dh, TextFieldWidget field) {
         if (!Gfx.inside(mx, my, dx, dy, dw, dh) || Gfx.inside(mx, my, dx + dw - 18, dy + 6, 12, 12)) {
             closeDialog(field);
@@ -304,10 +271,7 @@ final class WhisperPane {
         return false;
     }
 
-    /**
-     * Intro en el campo: abre el nombre escrito o, si está vacío, el primer jugador
-     * sugerido.
-     */
+    /** Intro en el campo: abre el nombre escrito o, si está vacío, el primer jugador sugerido. */
     void submitNick(TextFieldWidget field) {
         String q = field.getText().trim();
         if (NAME.matcher(q).matches()) {
@@ -315,8 +279,7 @@ final class WhisperPane {
             return;
         }
         List<String[]> rows = rows(q);
-        if (!rows.isEmpty())
-            create(rows.get(0)[0], field);
+        if (!rows.isEmpty()) create(rows.get(0)[0], field);
     }
 
     private void create(String name, TextFieldWidget field) {

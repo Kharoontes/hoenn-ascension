@@ -17,7 +17,6 @@ import dev.hoennascension.core.ChatEntry;
 import dev.hoennascension.core.Commands;
 import dev.hoennascension.core.DonationTracker;
 import dev.hoennascension.core.Whispers;
-import dev.hoennascension.core.WhisperPane;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
