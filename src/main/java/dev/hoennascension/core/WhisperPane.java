@@ -1,7 +1,10 @@
-package dev.hoennascension.ui;
+package dev.hoennascension.core;
 
 import dev.hoennascension.HoennAscensionClient;
 import dev.hoennascension.config.HoennConfig;
+import dev.hoennascension.ui.Gfx;
+import dev.hoennascension.ui.Icons;
+import dev.hoennascension.ui.Theme;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.TextFieldWidget;
