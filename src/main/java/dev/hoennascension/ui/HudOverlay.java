@@ -23,7 +23,7 @@ public final class HudOverlay {
     public static void render(DrawContext c) {
         MinecraftClient mc = MinecraftClient.getInstance();
         HoennConfig cfg = HoennConfig.get();
-        if (!cfg.hudPinned || mc.options.hudHidden || mc.currentScreen != null || mc.player == null) return;
+        if (!cfg.enabled || !cfg.hudPinned || mc.options.hudHidden || mc.currentScreen != null || mc.player == null) return;
 
         TextRenderer tr = mc.textRenderer;
         Theme th = Theme.byId(cfg.theme);

@@ -23,6 +23,8 @@ public final class MessageStore {
     private final Map<String, Integer> peerUnread = new HashMap<>();
     /** Sube con cada cambio; las pantallas lo usan para invalidar cachés. */
     public int version = 0;
+    /** Hay cambios sin guardar en disco. */
+    private boolean dirty = false;
 
     public void add(ChatEntry e) {
         all.add(e);
@@ -42,10 +44,16 @@ public final class MessageStore {
             unread.merge(e.channel, 1, Integer::sum);
             if (e.peer != null) peerUnread.merge(e.peer.toLowerCase(Locale.ROOT), 1, Integer::sum);
         }
-        version++;
+        touch();
     }
 
-    /** Últimos mensajes de una pestaña. "all" excluye canales silenciados. */
+    /** Avisa de que una entrada existente ha cambiado (p. ej. se le añadieron coordenadas). */
+    public void touch() {
+        version++;
+        dirty = true;
+    }
+
+    /** Últimos mensajes de una pestaña. "all" junta los canales no silenciados. */
     public List<ChatEntry> view(String tab, String filterLower, int limit) {
         HoennConfig cfg = HoennConfig.get();
         List<ChatEntry> out = new ArrayList<>();
@@ -53,12 +61,12 @@ public final class MessageStore {
             ChatEntry e = all.get(i);
             if (tab.equals("all")) {
                 ChannelDef c = cfg.channel(e.channel);
-                if (c != null && c.muted) continue;
+                if (c != null && (c.muted || c.hidden)) continue;
             } else if (!e.channel.equals(tab)) {
                 continue;
             }
             if (filterLower != null && !filterLower.isEmpty()
-                    && !e.text.toLowerCase(Locale.ROOT).contains(filterLower)) continue;
+                    && !e.shown().toLowerCase(Locale.ROOT).contains(filterLower)) continue;
             out.add(e);
         }
         Collections.reverse(out);
@@ -80,7 +88,7 @@ public final class MessageStore {
     public void removePeer(String peer) {
         all.removeIf(e -> e.peer != null && e.peer.equalsIgnoreCase(peer));
         peerUnread.remove(peer.toLowerCase(Locale.ROOT));
-        version++;
+        touch();
         save();
     }
 
@@ -110,8 +118,20 @@ public final class MessageStore {
         all.clear();
         unread.clear();
         peerUnread.clear();
-        version++;
+        touch();
         save();
+    }
+
+    /**
+     * Re-clasifica todo el historial guardado con las reglas actuales: recupera mensajes que quedaron en
+     * canales antiguos (p. ej. el clan guardado como "general") y descarta los que ya no pertenecen a ningún canal.
+     */
+    public void reclassifyAll() {
+        Iterator<ChatEntry> it = all.iterator();
+        while (it.hasNext()) {
+            if (!MessageRouter.reclassify(it.next())) it.remove();
+        }
+        touch();
     }
 
     private static Path file() {
@@ -122,8 +142,14 @@ public final class MessageStore {
         try {
             Files.createDirectories(file().getParent());
             Files.writeString(file(), GSON.toJson(all));
+            dirty = false;
         } catch (Exception ignored) {
         }
+    }
+
+    /** Guarda solo si hay cambios (se llama periódicamente para no perder el historial si el juego se cierra mal). */
+    public void saveIfDirty() {
+        if (dirty) save();
     }
 
     public void load() {
@@ -132,7 +158,9 @@ public final class MessageStore {
             List<ChatEntry> loaded = GSON.fromJson(Files.readString(file()),
                     new TypeToken<List<ChatEntry>>() {}.getType());
             all.clear();
-            if (loaded != null) all.addAll(loaded);
+            if (loaded != null) {
+                for (ChatEntry e : loaded) if (e != null && e.channel != null && e.text != null) all.add(e);
+            }
             version++;
         } catch (Exception ignored) {
         }

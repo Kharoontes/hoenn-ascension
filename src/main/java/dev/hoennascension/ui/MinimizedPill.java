@@ -61,7 +61,7 @@ public final class MinimizedPill {
     /** ¿Debe verse la pastilla ahora? Solo dentro de un mundo; tras minimizar o, por defecto, siempre. */
     private static boolean shown() {
         HoennConfig cfg = HoennConfig.get();
-        return inWorld() && !snoozed && (cfg.minimized || cfg.pillAlwaysVisible);
+        return cfg.enabled && inWorld() && !snoozed && (cfg.minimized || cfg.pillAlwaysVisible);
     }
 
     public static void unsnooze() {

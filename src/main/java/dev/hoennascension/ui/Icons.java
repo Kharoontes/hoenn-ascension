@@ -12,8 +12,7 @@ public final class Icons {
     private static final Identifier ATLAS = Identifier.of("hoennascension", "textures/gui/icons.png");
     /** Orden de los iconos en icons.png (cada uno ocupa 24x24 px). Añade aquí los nuevos al final. */
     private static final String[] NAMES = {
-            "all", "general", "teleport", "private", "clan", "legendary",
-            "mega", "trade", "donate", "whisper", "settings"
+            "clan", "spawns", "teleport", "market", "wondertrade", "raids", "donate", "settings"
     };
     private static final int CELL = 24;
 

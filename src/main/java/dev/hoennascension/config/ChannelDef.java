@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -45,6 +46,18 @@ public final class ChannelDef {
     public boolean hideRejected = false;
     /** Regex con grupos con nombre (?<x>..) (?<z>..) y opcionalmente (?<y>..). Se prueban en orden. */
     public List<String> coordPatterns = new ArrayList<>();
+    /** Regex que, si coincide, EXCLUYE el mensaje del canal (p. ej. las solicitudes que envías tú). */
+    public String excludePattern = "";
+    /** Oculto en el sidebar (canales internos, como el de susurros). */
+    public boolean hidden = false;
+    /** Qué muestra el canal: log (mensajes) | teleport (cuadrícula del clan) | wondertrade | raids (amigos). */
+    public String view = "log";
+    /** Cómo se da formato al mensaje: formatPatterns con grupos (?<rank>) (?<name>) (?<msg>) -> "[Rango] Nombre: mensaje". */
+    public List<String> formatPatterns = new ArrayList<>();
+    /** Lectura especial de los mensajes: "gts" = compras y ventas del GTS. */
+    public String parser = "";
+    /** Regex con grupo (?<pokemon>..) para saber de qué Pokémon habla el aviso (sirve para localizarlo). */
+    public List<String> pokemonPatterns = new ArrayList<>();
     /** Subfiltros del canal (botones): nombre de cada uno y la regex que clasifica los mensajes. */
     public List<String> subFilters = new ArrayList<>();
     public List<String> subPatterns = new ArrayList<>();
@@ -78,8 +91,26 @@ public final class ChannelDef {
         return (icon != null && !icon.isBlank()) ? icon : id;
     }
 
+    public String viewName() {
+        return (view == null || view.isBlank()) ? "log" : view;
+    }
+
+    /** Canal comodín (sin patrón y de tipo log): lo que no encaja en ningún otro. */
     public boolean isFallback() {
-        return pattern == null || pattern.isBlank();
+        return (pattern == null || pattern.isBlank()) && viewName().equals("log");
+    }
+
+    public boolean excluded(String text) {
+        return excludePattern != null && !excludePattern.isBlank() && find(excludePattern, text);
+    }
+
+    /** Valor de un grupo con nombre o null si el patrón no lo tiene. */
+    public static String group(Matcher m, String name) {
+        try {
+            return m.group(name);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return null;
+        }
     }
 
     public boolean isActionable() {
